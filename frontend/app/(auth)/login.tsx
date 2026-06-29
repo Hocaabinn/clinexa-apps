@@ -1,0 +1,807 @@
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Animated,
+  StatusBar,
+  Alert,
+  Linking,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import { useRouter } from 'expo-router';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as SecureStore from 'expo-secure-store';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex } from '@noble/hashes/utils';
+import { Buffer } from 'buffer';
+import { supabase } from '../../lib/supabase';
+import { authState } from '../../constants/auth';
+
+export default function LoginScreen() {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'recovery' | 'qr'>('recovery');
+
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scanAnim = useRef(new Animated.Value(0)).current;
+
+  // Focus tracking state
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isNikFocused, setIsNikFocused] = useState(false);
+  const [isOtpFocused, setIsOtpFocused] = useState(false);
+  const [showSeedPhraseInput, setShowSeedPhraseInput] = useState(false);
+
+  // Recovery Phrase / OTP Input State
+  const [nik, setNik] = useState('');
+  const [otp, setOtp] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState<string | null>(null);
+  const [otpSent, setOtpSent] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [recoveryPhrase, setRecoveryPhrase] = useState('');
+
+  // Countdown timer for resending OTP
+  useEffect(() => {
+    let timer: any;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
+  // Camera Permission and Scan State
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
+
+  // Loop QR scan line animation
+  useEffect(() => {
+    if (activeTab === 'qr') {
+      setScanned(false); // Reset scanned state when opening QR tab
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scanAnim, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scanAnim, {
+            toValue: 0,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      scanAnim.setValue(0);
+    }
+  }, [activeTab, scanAnim]);
+
+  const switchTab = (tab: 'recovery' | 'qr') => {
+    if (tab === activeTab) return;
+
+    // Smooth fade transition
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(() => {
+      setActiveTab(tab);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  const handleSendOtp = async () => {
+    if (nik.trim().length !== 16) {
+      alert('Silakan masukkan 16 digit NIK Anda.');
+      return;
+    }
+    setIsSendingOtp(true);
+    try {
+      // 1. Cek apakah pasien terdaftar di Supabase
+      const { data: patient, error } = await supabase
+        .from('patients')
+        .select('id')
+        .eq('nik', nik.trim())
+        .single();
+
+      if (error || !patient) {
+        alert('NIK tidak ditemukan atau tidak terdaftar sebagai pasien.');
+        return;
+      }
+
+      // 2. Generate random 6-digit OTP
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedOtp(code);
+      setOtpSent(true);
+      setCountdown(60);
+
+      // Salin OTP ke clipboard agar mudah dipaste/diingat saat kembali dari WA
+      await Clipboard.setStringAsync(code);
+
+      // 3. Simulasikan pengiriman OTP dengan membuka WhatsApp
+      Alert.alert(
+        'Kode OTP Terkirim',
+        `Kode OTP (${code}) telah terkirim ke WhatsApp Anda (dan disalin ke clipboard). Silakan buka WhatsApp untuk mengambil kode.`,
+        [
+          {
+            text: 'Buka WhatsApp',
+            onPress: async () => {
+              try {
+                await Linking.openURL('whatsapp://app');
+              } catch (err) {
+                // Fallback jika tidak ada aplikasi WA
+                await Linking.openURL('https://wa.me');
+              }
+            }
+          }
+        ]
+      );
+    } catch (err) {
+      console.error('Error sending OTP:', err);
+      alert('Gagal mengirimkan OTP. Silakan coba lagi.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleContinue = async () => {
+    if (nik.trim().length !== 16) {
+      alert('Silakan masukkan 16 digit NIK Anda.');
+      return;
+    }
+    if (!otpSent || !generatedOtp) {
+      alert('Silakan kirim OTP terlebih dahulu.');
+      return;
+    }
+    if (otp.trim() !== generatedOtp) {
+      alert('Kode OTP yang Anda masukkan salah.');
+      return;
+    }
+
+    try {
+      // 1. Cek apakah pasien terdaftar di Supabase
+      const { data: patient, error } = await supabase
+        .from('patients')
+        .select('id, name, wallet_address')
+        .eq('nik', nik.trim())
+        .single();
+
+      if (error || !patient) {
+        alert('Data pasien tidak ditemukan.');
+        return;
+      }
+
+      // 2. Simpan NIK ke SecureStore
+      await SecureStore.setItemAsync('user_nik', nik.trim());
+
+      // 3. Simpan seed phrase jika diisi (opsional)
+      if (recoveryPhrase.trim() !== '') {
+        await SecureStore.setItemAsync('user_seed_phrase', recoveryPhrase.trim());
+        const walletAddress = '0x' + bytesToHex(sha256(Buffer.from(recoveryPhrase.trim(), 'utf-8'))).substring(0, 40);
+        await SecureStore.setItemAsync('user_wallet_address', walletAddress);
+      } else {
+        // Jika tidak diisi, gunakan wallet_address dari database
+        if (patient.wallet_address) {
+          await SecureStore.setItemAsync('user_wallet_address', patient.wallet_address);
+        }
+      }
+
+      alert(`Selamat datang kembali, ${patient.name}!`);
+      authState.login();
+      router.replace('/(dashboard)');
+    } catch (err) {
+      console.error('Error logging in:', err);
+      alert('Gagal memuat akun. Pastikan data benar.');
+    }
+  };
+
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    setScanned(true);
+    console.log('Barcode scanned:', data);
+    alert(`Kode QR berhasil dipindai: ${data}`);
+    authState.login();
+    router.replace('/(dashboard)');
+  };
+
+  // Interpolate translateY for the scanning laser line
+  const scanTranslateY = scanAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [10, 190], // Scanner box is 200px tall
+  });
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+
+      {/* Top Navbar */}
+      <View style={styles.navbarContainer}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} activeOpacity={0.6}>
+          <Ionicons name="chevron-back" size={26} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.navbarTitle}>Memuat Akun</Text>
+        <View style={styles.spacer} />
+      </View>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={{ flex: 1 }}>
+            {/* Tab Selector - Line Indicator Style matches user request screenshot */}
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
+                style={[styles.tabButton, activeTab === 'recovery' && styles.tabButtonActive]}
+                onPress={() => switchTab('recovery')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tabText, activeTab === 'recovery' && styles.tabTextActive]}>
+                  Kata Sandi Pemulihan
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.tabButton, activeTab === 'qr' && styles.tabButtonActive]}
+                onPress={() => switchTab('qr')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tabText, activeTab === 'qr' && styles.tabTextActive]}>
+                  Pindai Kode QR
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Animated Tab Content */}
+            <Animated.View style={[styles.contentWrapper, { opacity: fadeAnim }]}>
+              {activeTab === 'recovery' ? (
+                /* --- KATA SANDI PEMULIHAN FORM --- */
+                <View style={styles.tabContent}>
+
+                  {/* Header Title with Shield Icon */}
+                  <View style={styles.contentHeader}>
+                    <Text style={styles.contentTitle}>Masuk dengan NIK & OTP</Text>
+                    <Ionicons name="shield-checkmark" size={22} color="#0F172A" style={styles.titleIcon} />
+                  </View>
+
+                  {/* Description */}
+                  <Text style={styles.description}>
+                    {!otpSent 
+                      ? "Masukkan 16 digit NIK Anda untuk mengirim kode OTP dan memverifikasi data rekam medis Anda."
+                      : "Verifikasi kode OTP Anda. Anda juga dapat memasukkan seed phrase untuk perlindungan keamanan ekstra."}
+                  </Text>
+
+                  {/* NIK Input Field */}
+                  <View style={[
+                    styles.inputWrapper,
+                    isNikFocused && styles.inputWrapperFocused,
+                    otpSent && { opacity: 0.6 }
+                  ]}>
+                    <Ionicons name="card-outline" size={20} color={isNikFocused ? "#1BA098" : "#94A3B8"} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Masukkan 16-digit NIK Anda"
+                      placeholderTextColor="#94A3B8"
+                      value={nik}
+                      onChangeText={(text) => setNik(text.replace(/[^0-9]/g, ''))}
+                      keyboardType="numeric"
+                      maxLength={16}
+                      editable={!otpSent}
+                      onFocus={() => setIsNikFocused(true)}
+                      onBlur={() => setIsNikFocused(false)}
+                    />
+                  </View>
+
+                  {/* Kirim OTP Button (Before OTP is sent) */}
+                  {!otpSent ? (
+                    <TouchableOpacity
+                      style={[styles.continueButton, { marginTop: 12 }]}
+                      onPress={handleSendOtp}
+                      disabled={isSendingOtp || nik.length !== 16}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.continueButtonText}>
+                        {isSendingOtp ? "Mengirim..." : "Kirim OTP"}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <>
+                      {/* OTP Input Field */}
+                      <View style={[
+                        styles.inputWrapper,
+                        isOtpFocused && styles.inputWrapperFocused
+                      ]}>
+                        <Ionicons name="keypad-outline" size={20} color={isOtpFocused ? "#1BA098" : "#94A3B8"} style={styles.inputIcon} />
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Masukkan 6-digit Kode OTP"
+                          placeholderTextColor="#94A3B8"
+                          value={otp}
+                          onChangeText={(text) => setOtp(text.replace(/[^0-9]/g, ''))}
+                          keyboardType="numeric"
+                          maxLength={6}
+                          onFocus={() => setIsOtpFocused(true)}
+                          onBlur={() => setIsOtpFocused(false)}
+                        />
+                      </View>
+
+                      {/* Seed Phrase Toggle Button */}
+                      <TouchableOpacity
+                        style={styles.optionalToggleBtn}
+                        onPress={() => setShowSeedPhraseInput(!showSeedPhraseInput)}
+                        activeOpacity={0.8}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Ionicons name={showSeedPhraseInput ? "chevron-up-circle-outline" : "key-outline"} size={20} color="#1BA098" style={{ marginRight: 8 }} />
+                          <Text style={styles.optionalToggleText}>
+                            Seed Phrase (Opsional)
+                          </Text>
+                        </View>
+                        <Ionicons name={showSeedPhraseInput ? "chevron-up" : "chevron-down"} size={16} color="#64748B" />
+                      </TouchableOpacity>
+
+                      {showSeedPhraseInput && (
+                        <View style={{ width: '100%', marginTop: 4 }}>
+                          <TextInput
+                            style={[
+                              styles.textAreaInput,
+                              isInputFocused && styles.textAreaInputFocused,
+                              { height: 90, marginBottom: 16 }
+                            ]}
+                            placeholder="Masukkan 12 kata kunci pemulihan Anda (Opsional)"
+                            placeholderTextColor="#94A3B8"
+                            multiline={true}
+                            numberOfLines={3}
+                            value={recoveryPhrase}
+                            onChangeText={setRecoveryPhrase}
+                            onFocus={() => setIsInputFocused(true)}
+                            onBlur={() => setIsInputFocused(false)}
+                            textAlignVertical="top"
+                          />
+
+                          {/* Note box */}
+                          <View style={styles.noteBox}>
+                            <View style={styles.noteHeader}>
+                              <Ionicons name="information-circle" size={18} color="#0D9488" />
+                              <Text style={styles.noteTitle}>Peringatan Keamanan</Text>
+                            </View>
+                            <Text style={styles.noteText}>
+                              Jika Anda masih menyimpan seed phrase di awal, harap masukkan demi keamanan data Anda.
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Countdown & Resend Button */}
+                      <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                        {countdown > 0 ? (
+                          <Text style={styles.resendText}>Kirim ulang OTP dalam {countdown} detik</Text>
+                        ) : (
+                          <TouchableOpacity onPress={handleSendOtp}>
+                            <Text style={styles.resendLink}>Kirim Ulang OTP</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      {/* Continue Button */}
+                      <View style={styles.bottomButtonContainer}>
+                        <TouchableOpacity
+                          style={styles.continueButton}
+                          onPress={handleContinue}
+                          disabled={otp.length !== 6}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.continueButtonText}>Lanjutkan</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  )}
+                </View>
+              ) : (
+                /* --- PINDAI KODE QR VIEW --- */
+                <View style={styles.tabContent}>
+
+                  {/* Header Title with QR Icon */}
+                  <View style={styles.contentHeader}>
+                    <Text style={styles.contentTitle}>Pindai Kode QR</Text>
+                    <Ionicons name="qr-code-outline" size={22} color="#0F172A" style={styles.titleIcon} />
+                  </View>
+
+                  {/* Description */}
+                  <Text style={styles.description}>
+                    Pindai kode QR dari perangkat Anda yang lain untuk masuk secara instan dan aman tanpa perlu mengetik kata sandi pemulihan.
+                  </Text>
+
+                  {/* Modern QR Scan Area using expo-camera */}
+                  <View style={styles.qrScanBoxContainer}>
+                    {!permission ? (
+                      <View style={styles.qrScanBox}>
+                        <Text style={styles.qrScanInstructions}>Memuat Kamera...</Text>
+                      </View>
+                    ) : !permission.granted ? (
+                      <View style={styles.qrScanBoxPermission}>
+                        <Ionicons name="camera-outline" size={48} color="#94A3B8" style={{ marginBottom: 12 }} />
+                        <Text style={styles.permissionText}>
+                          Akses kamera diperlukan untuk memindai kode QR
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.permissionButton}
+                          onPress={requestPermission}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.permissionButtonText}>Berikan Izin Kamera</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={styles.qrScanBox}>
+                        {/* Live camera stream */}
+                        <CameraView
+                          style={StyleSheet.absoluteFillObject}
+                          facing="back"
+                          barcodeScannerSettings={{
+                            barcodeTypes: ['qr'],
+                          }}
+                          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+                        />
+
+                        {/* Glowing corners for scanner overlay */}
+                        <View style={[styles.scannerCorner, styles.topLeftCorner]} />
+                        <View style={[styles.scannerCorner, styles.topRightCorner]} />
+                        <View style={[styles.scannerCorner, styles.bottomLeftCorner]} />
+                        <View style={[styles.scannerCorner, styles.bottomRightCorner]} />
+
+                        {/* Animated Scanning Line */}
+                        <Animated.View style={[
+                          styles.scanningLaserLine,
+                          { transform: [{ translateY: scanTranslateY }] }
+                        ]} />
+                      </View>
+                    )}
+                    {permission && permission.granted && (
+                      <Text style={styles.qrScanInstructions}>
+                        {scanned ? 'Sedang memproses kode QR...' : 'Posisikan kode QR di dalam bingkai'}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              )}
+            </Animated.View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  container: {
+    flex: 1,
+  },
+  navbarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    height: 56,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9', // Subtle divider under navbar
+    paddingTop: Platform.OS === 'android' ? 10 : 0,
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  navbarTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0F172A', // Slate 900
+    textAlign: 'center',
+  },
+  spacer: {
+    width: 42, // Match size of back button for perfect centering
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 36,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0', // Slate 200
+    marginBottom: 36,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+    marginBottom: -1, // Overlap parent border
+  },
+  tabButtonActive: {
+    borderBottomColor: '#1BA098', // Green indicator line
+  },
+  tabText: {
+    fontSize: 15,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: '#1BA098', // Green text for active tab
+    fontWeight: '700',
+  },
+  contentWrapper: {
+    flex: 1,
+  },
+  tabContent: {
+    flex: 1,
+  },
+  contentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  contentTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#0F172A', // Slate 900
+  },
+  titleIcon: {
+    marginLeft: 8,
+  },
+  description: {
+    fontSize: 15,
+    color: '#475569', // Slate 600
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  textAreaInput: {
+    backgroundColor: '#F8FAFC', // Slate 50
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0', // Slate 200
+    padding: 16,
+    height: 140,
+    fontSize: 15,
+    color: '#0F172A',
+    fontWeight: '500',
+    lineHeight: 22,
+  },
+  textAreaInputFocused: {
+    borderColor: '#1BA098', // Green border when active
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#1BA098',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  // QR Scan Layout
+  qrScanBoxContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
+  qrScanBox: {
+    width: 240,
+    height: 240,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  qrScanBoxPermission: {
+    width: 240,
+    height: 240,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  permissionText: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  permissionButton: {
+    backgroundColor: '#1BA098',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  permissionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  scannerCorner: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderColor: '#1BA098', // Green corners
+    zIndex: 20,
+  },
+  topLeftCorner: {
+    top: 16,
+    left: 16,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 8,
+  },
+  topRightCorner: {
+    top: 16,
+    right: 16,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: 8,
+  },
+  bottomLeftCorner: {
+    bottom: 16,
+    left: 16,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: 8,
+  },
+  bottomRightCorner: {
+    bottom: 16,
+    right: 16,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: 8,
+  },
+  scanningLaserLine: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    height: 3,
+    backgroundColor: '#1BA098',
+    shadowColor: '#1BA098',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 10,
+  },
+  qrScanInstructions: {
+    fontSize: 14,
+    color: '#64748B',
+    marginTop: 20,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  bottomButtonContainer: {
+    marginTop: 36,
+    width: '100%',
+  },
+  continueButton: {
+    backgroundColor: '#1BA098', // Green button
+    borderRadius: 28, // Pill shape like "Lanjutkan" in screenshot
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#1BA098',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  continueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    height: 56,
+  },
+  inputWrapperFocused: {
+    borderColor: '#1BA098',
+    backgroundColor: '#FFFFFF',
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0F172A',
+    fontWeight: '500',
+  },
+  noteBox: {
+    backgroundColor: '#F0FDFA',
+    borderWidth: 1,
+    borderColor: '#CCFBF1',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  noteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  noteTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#0D9488',
+    marginLeft: 6,
+  },
+  noteText: {
+    fontSize: 13,
+    color: '#0F766E',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  resendText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  resendLink: {
+    fontSize: 13,
+    color: '#1BA098',
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
+  },
+  optionalToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 56,
+    marginBottom: 16,
+    width: '100%',
+  },
+  optionalToggleText: {
+    fontSize: 15,
+    color: '#0F172A',
+    fontWeight: 'bold',
+  },
+});
