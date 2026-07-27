@@ -23,8 +23,6 @@ import { bytesToHex } from '@noble/hashes/utils';
 global.Buffer = global.Buffer || Buffer;
 
 const { width } = Dimensions.get('window');
-const GRID_SPACING = 12;
-const ITEM_WIDTH = (width - 48 - (GRID_SPACING * 2)) / 3;
 
 export default function SeedPhraseScreen() {
     const router = useRouter();
@@ -408,7 +406,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 16,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: '#E2E8F0',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
@@ -425,27 +423,28 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        gap: GRID_SPACING,
+        rowGap: 10,
     },
     wordItem: {
-        width: ITEM_WIDTH,
-        backgroundColor: '#F3F4F6',
+        width: '31%',
+        backgroundColor: '#F8FAFC',
         borderRadius: 12,
-        paddingVertical: 10,
+        paddingVertical: 14,
+        paddingHorizontal: 6,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: '#E2E8F0',
     },
     wordNumber: {
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: '600',
-        color: '#9CA3AF',
-        marginBottom: 4,
+        color: '#94A3B8',
+        marginBottom: 6,
     },
     wordText: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: '600',
-        color: '#1F2937',
+        color: '#334155',
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
     actionsContainer: {
