@@ -173,6 +173,29 @@ export default function DashboardIndex() {
     };
   }, [patientData?.id]);
 
+  const [profileImage, setProfileImage] = useState<string>('https://i.pravatar.cc/150?img=11');
+
+  useEffect(() => {
+    const loadProfileImage = async () => {
+      try {
+        let savedImage: string | null = null;
+        if (Platform.OS === 'web') {
+          if (typeof window !== 'undefined') {
+            savedImage = localStorage.getItem('user_profile_image');
+          }
+        } else {
+          savedImage = await SecureStore.getItemAsync('user_profile_image');
+        }
+        if (savedImage) {
+          setProfileImage(savedImage);
+        }
+      } catch (e) {
+        console.error('Error loading saved profile image:', e);
+      }
+    };
+    loadProfileImage();
+  }, []);
+
   return (
     <SafeAreaView style={tw`flex-1 bg-white relative`}>
       <StatusBar barStyle="light-content" backgroundColor="#2ea89c" />
@@ -187,12 +210,12 @@ export default function DashboardIndex() {
 
           <View style={tw`flex-row justify-between items-center relative z-10`}>
             <View style={tw`flex-row items-center`}>
-              <View style={tw`shadow-sm rounded-full bg-white/20 p-1 mr-4`}>
+              <TouchableOpacity onPress={() => router.navigate('/(profile)')} style={tw`shadow-sm rounded-full bg-white/20 p-1 mr-4`}>
                 <Image
-                  source={{ uri: 'https://i.pravatar.cc/150?img=11' }}
+                  source={{ uri: profileImage }}
                   style={tw`w-14 h-14 rounded-full border-2 border-white`}
                 />
-              </View>
+              </TouchableOpacity>
               <View>
                 <Text style={tw`text-white/90 text-sm font-medium mb-1 tracking-wide`}>{greeting}</Text>
                 {loading ? (
