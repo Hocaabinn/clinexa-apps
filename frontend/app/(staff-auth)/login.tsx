@@ -1,18 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, SafeAreaView, Platform, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, SafeAreaView, Platform, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import tw from 'twrnc';
-import { authState } from '../../constants/auth';
+import { supabase } from '../../lib/supabase';
 
 export default function StaffLogin() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleLogin = () => {
-    authState.login();
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      setErrorMsg('Email dan password harus diisi.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg('');
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password.trim(),
+    });
+
+    if (error) {
+      setErrorMsg('Email atau password salah.');
+      setLoading(false);
+      return;
+    }
+
     router.replace('/(staff)');
   };
 
@@ -65,6 +85,13 @@ export default function StaffLogin() {
           <Text style={tw`text-[#0b4771] text-4xl font-medium mb-2`}>Selamat Datang</Text>
           <Text style={tw`text-[#6d7f95] text-lg mb-10 font-light`}>Masuk ke akun staf medis Anda</Text>
 
+          {errorMsg ? (
+            <View style={tw`bg-[#fee2e2] border border-[#fecaca] rounded-xl px-4 py-3 mb-6 flex-row items-center`}>
+              <Ionicons name="alert-circle" size={20} color="#dc2626" />
+              <Text style={tw`text-[#dc2626] ml-2 font-medium`}>{errorMsg}</Text>
+            </View>
+          ) : null}
+
           <View style={tw`mb-6`}>
             <Text style={tw`text-[#0b4771] font-medium mb-2 uppercase text-sm`}>EMAIL</Text>
             <View style={tw`flex-row items-center border border-[#d8dee8] rounded-xl bg-transparent px-4 h-14`}>
@@ -92,6 +119,7 @@ export default function StaffLogin() {
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
+                onSubmitEditing={handleLogin}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9aa5b5" />
@@ -106,10 +134,15 @@ export default function StaffLogin() {
           </View>
 
           <TouchableOpacity
-            style={tw`bg-[#1ba39a] h-14 rounded-xl items-center justify-center`}
+            style={tw`bg-[#1ba39a] h-14 rounded-xl items-center justify-center flex-row`}
             onPress={handleLogin}
+            disabled={loading}
           >
-            <Text style={tw`text-white font-medium text-lg`}>Masuk</Text>
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={tw`text-white font-medium text-lg`}>Masuk</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>

@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import 'react-native-reanimated';
 import { Platform } from 'react-native';
 import { useAuth } from '../constants/auth';
+import { useStaffSession } from '../lib/staff-auth';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -15,6 +16,7 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const { isLoggedIn } = useAuth();
+  const { isAuthenticated: isStaffAuthenticated, isLoading: staffLoading } = useStaffSession();
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -26,11 +28,11 @@ export default function RootLayout() {
     if (!isReady) return;
 
     if (Platform.OS === 'web') {
+      if (staffLoading) return;
       const inStaffAuth = segments[0] === '(staff-auth)';
-      const inStaff = segments[0] === '(staff)';
-      if (!isLoggedIn && !inStaffAuth) {
+      if (!isStaffAuthenticated && !inStaffAuth) {
         router.replace('/(staff-auth)/login');
-      } else if (isLoggedIn && inStaffAuth) {
+      } else if (isStaffAuthenticated && inStaffAuth) {
         router.replace('/(staff)');
       }
       return;
@@ -42,9 +44,10 @@ export default function RootLayout() {
     } else if (isLoggedIn && inAuthGroup) {
       router.replace('/(dashboard)');
     }
-  }, [isLoggedIn, segments, isReady]);
+  }, [isLoggedIn, isStaffAuthenticated, staffLoading, segments, isReady]);
 
   if (!isReady) return null;
+  if (Platform.OS === 'web' && staffLoading) return null;
 
   if (Platform.OS === 'web') {
     return (

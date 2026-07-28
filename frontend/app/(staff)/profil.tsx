@@ -1,8 +1,36 @@
-import React from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
+import { useStaffAuth } from '../../lib/staff-auth';
+import { supabase } from '../../lib/supabase';
+
 export default function StaffProfile() {
+    const { staffProfile, isLoading } = useStaffAuth();
+    const [stats, setStats] = useState({ patients: 0, records: 0 });
+
+    useEffect(() => {
+        if (staffProfile) {
+            loadStats();
+        }
+    }, [staffProfile]);
+
+    const loadStats = async () => {
+        const { count: patientsCount } = await supabase.from('patients').select('*', { count: 'exact', head: true });
+        const { count: recordsCount } = await supabase.from('medical_records').select('*', { count: 'exact', head: true });
+        setStats({ patients: patientsCount || 0, records: recordsCount || 0 });
+    };
+
+    if (isLoading || !staffProfile) {
+        return (
+            <View style={tw`flex-1 bg-[#f4f6f8] items-center justify-center`}>
+                <ActivityIndicator size="large" color="#1ba39a" />
+            </View>
+        );
+    }
+
+    const initials = staffProfile.name.split(' ').filter(w => w.length > 0).map(w => w[0]).join('').substring(0, 2).toUpperCase();
+
     return (
         <ScrollView style={tw`flex-1 bg-[#f4f6f8]`}>
             <View style={tw`p-10 max-w-5xl mx-auto w-full`}>
@@ -15,15 +43,15 @@ export default function StaffProfile() {
                 </View>
                 <View style={tw`bg-white rounded-2xl p-6 flex-row items-center mb-6`}>
                     <View style={tw`bg-[#2fc4bf] w-24 h-24 rounded-2xl items-center justify-center mr-6`}>
-                        <Text style={tw`text-white text-2xl font-medium`}>AS</Text>
+                        <Text style={tw`text-white text-2xl font-medium`}>{initials}</Text>
                     </View>
 
                     <View style={tw`flex-1`}>
-                        <Text style={tw`text-[#0b4771] text-2xl font-medium mb-1`}>Dr. Agung Setya</Text>
-                        <Text style={tw`text-[#1ba39a] text-base font-medium mb-2`}>Dokter Umum</Text>
+                        <Text style={tw`text-[#0b4771] text-2xl font-medium mb-1`}>{staffProfile.name}</Text>
+                        <Text style={tw`text-[#1ba39a] text-base font-medium mb-2`}>{staffProfile.specialization || 'Staf Medis'}</Text>
                         <View style={tw`flex-row items-center mb-3`}>
                             <Ionicons name="business-outline" size={16} color="#9aa5b5" />
-                            <Text style={tw`text-[#9aa5b5] ml-1.5 font-light`}>RS Harapan Sehat Surabaya</Text>
+                            <Text style={tw`text-[#9aa5b5] ml-1.5 font-light`}>{staffProfile.institution || 'Belum diatur'}</Text>
                         </View>
                         <View style={tw`flex-row gap-3`}>
                             <View style={tw`bg-[#e0f6f4] flex-row items-center px-3 py-1.5 rounded-full`}>
@@ -36,37 +64,38 @@ export default function StaffProfile() {
                         </View>
                     </View>
                 </View>
+                
                 <View style={[tw`flex-row gap-5 mb-8`, { flexWrap: Platform.OS === 'web' ? 'nowrap' as const : 'wrap' as const }]}>
-                    <StatCard value="1,284" label="Total Pasien" />
-                    <StatCard value="3,901" label="Rekam Medis" />
-                    <StatCard value="847" label="Janji Selesai" />
-                    <StatCard value="47" label="Akses Diberikan" />
+                    <StatCard value={String(stats.patients)} label="Total Pasien" />
+                    <StatCard value={String(stats.records)} label="Rekam Medis" />
                 </View>
+
                 <View style={tw`bg-white rounded-2xl p-8`}>
                     <View style={[tw`flex-row gap-6 mb-6`, { flexDirection: Platform.OS === 'web' ? 'row' as const : 'column' as const }]}>
-                        <FormField label="NAMA LENGKAP" value="Dr. Agung Setya, S.Kom" icon="person-outline" flex={1} />
-                        <FormField label="GOLONGAN DARAH" value="B+" icon="water-outline" flex={1} />
+                        <FormField label="NAMA LENGKAP" value={staffProfile.name} icon="person-outline" flex={1} />
+                        <FormField label="GOLONGAN DARAH" value={staffProfile.blood_type || '-'} icon="water-outline" flex={1} />
                     </View>
                     <View style={[tw`flex-row gap-6 mb-6`, { flexDirection: Platform.OS === 'web' ? 'row' as const : 'column' as const }]}>
-                        <FormField label="EMAIL" value="yourname@domain" icon="mail-outline" flex={1} />
+                        <FormField label="EMAIL" value={staffProfile.email} icon="mail-outline" flex={1} />
                         <FormField label="PASSWORD" value="***********" icon="key-outline" flex={1} secure />
                     </View>
                     <View style={[tw`flex-row gap-6 mb-6`, { flexDirection: Platform.OS === 'web' ? 'row' as const : 'column' as const }]}>
-                        <FormField label="JABATAN/SPESIALISASI" value="Dokter Umum" icon="briefcase-outline" flex={1} />
-                        <FormField label="KEWARGANEGARAAN" value="WNI (Warga Negara Indonesia)" icon="globe-outline" flex={1} />
+                        <FormField label="JABATAN/SPESIALISASI" value={staffProfile.specialization || '-'} icon="briefcase-outline" flex={1} />
+                        <FormField label="KEWARGANEGARAAN" value={staffProfile.nationality || '-'} icon="globe-outline" flex={1} />
                     </View>
                     <View style={[tw`flex-row gap-6 mb-6`, { flexDirection: Platform.OS === 'web' ? 'row' as const : 'column' as const }]}>
-                        <FormField label="NIP/NO. REGISTRASI" value="19860102010011001" icon="card-outline" flex={1} />
-                        <FormField label="INSTITUSI" value="RS Semen Gresik" icon="business-outline" flex={1} />
+                        <FormField label="NIP/NO. REGISTRASI" value={staffProfile.registration_number || '-'} icon="card-outline" flex={1} />
+                        <FormField label="INSTITUSI" value={staffProfile.institution || '-'} icon="business-outline" flex={1} />
                     </View>
                     <View style={tw`mb-2`}>
-                        <FormField label="ALAMAT LENGKAP" value="Jl Kartini, Kebomas, Gresik, Jawa TImur 61111" icon="location-outline" flex={1} />
+                        <FormField label="ALAMAT LENGKAP" value={staffProfile.address || '-'} icon="location-outline" flex={1} />
                     </View>
                 </View>
             </View>
         </ScrollView>
     );
 }
+
 function StatCard({ value, label }: { value: string, label: string }) {
     return (
         <View style={tw`flex-1 bg-white p-6 rounded-2xl items-center justify-center min-w-[150px]`}>
@@ -75,6 +104,7 @@ function StatCard({ value, label }: { value: string, label: string }) {
         </View>
     );
 }
+
 function FormField({ label, value, icon, flex, secure }: { label: string, value: string, icon: string, flex?: number, secure?: boolean }) {
     return (
         <View style={tw`flex-${flex || 'none'}`}>
