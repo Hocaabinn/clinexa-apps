@@ -60,6 +60,64 @@ export default function DashboardIndex() {
     return greetingsList[day % greetingsList.length];
   }, []);
 
+  // Medical visits state
+  const defaultVisits = [
+    { id: '1', rs: 'RS Pondok Indah', doctor: 'dr. Sarah Wijaya, Sp.PD', title: 'Pemeriksaan Rutin' },
+    { id: '2', rs: 'RS Janadra', doctor: 'dr. Luna Jaya, Sp.PD', title: 'Konsultasi Spesialis' },
+    { id: '3', rs: 'Klinik Hamil Sehat', doctor: 'dr. Soetomo, Sp.PD', title: 'Cek Kesehatan' },
+    { id: '4', rs: 'RS Pondok Indah', doctor: 'dr. Sarah Wijaya, Sp.PD', title: 'Pemeriksaan Jantung' },
+  ];
+  const [visits, setVisits] = useState<Array<{ id: string; rs: string; doctor: string; title?: string; date?: string }>>(defaultVisits);
+  const [loadingVisits, setLoadingVisits] = useState(true);
+
+  const fetchMedicalVisits = async (patientId: string) => {
+    try {
+      setLoadingVisits(true);
+      // Query medical_documents table in Supabase
+      const { data, error } = await supabase
+        .from('medical_documents')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false });
+
+      if (data && data.length > 0) {
+        const formattedVisits = data.map((doc: any) => ({
+          id: String(doc.id),
+          rs: doc.hospital_name || doc.institution || doc.facility_name || doc.rs || 'RS Harapan Sehat',
+          doctor: doc.doctor_name || doc.doctor || 'dr. Sarah Wijaya, Sp.PD',
+          title: doc.title || doc.diagnosis || 'Pemeriksaan Medis',
+          date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : (doc.date || ''),
+        }));
+        setVisits(formattedVisits);
+      } else {
+        // Fallback check medical_records table
+        const { data: recData } = await supabase
+          .from('medical_records')
+          .select('*')
+          .eq('patient_id', patientId)
+          .order('created_at', { ascending: false });
+
+        if (recData && recData.length > 0) {
+          const formattedVisits = recData.map((doc: any) => ({
+            id: String(doc.id),
+            rs: doc.hospital_name || doc.institution || doc.facility_name || doc.rs || 'RS Harapan Sehat',
+            doctor: doc.doctor_name || doc.doctor || 'dr. Sarah Wijaya, Sp.PD',
+            title: doc.title || doc.diagnosis || 'Pemeriksaan Medis',
+            date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : (doc.date || ''),
+          }));
+          setVisits(formattedVisits);
+        } else {
+          setVisits(defaultVisits);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching medical visits:", err);
+      setVisits(defaultVisits);
+    } finally {
+      setLoadingVisits(false);
+    }
+  };
+
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -74,6 +132,7 @@ export default function DashboardIndex() {
           if (data && !error) {
             setPatientData(data);
             patientDataCache.set(data);
+            fetchMedicalVisits(data.id);
           }
         }
       } catch (err) {
@@ -84,6 +143,57 @@ export default function DashboardIndex() {
     };
 
     loadUserData();
+  }, []);
+
+  // Setup Realtime Subscription for instant medical record updates when doctor inputs data
+  useEffect(() => {
+    if (!patientData?.id) return;
+
+    const channelName = `patient-records-${patientData.id}-${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'medical_documents', filter: `patient_id=eq.${patientData.id}` },
+        () => {
+          fetchMedicalVisits(patientData.id);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'medical_records', filter: `patient_id=eq.${patientData.id}` },
+        () => {
+          fetchMedicalVisits(patientData.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [patientData?.id]);
+
+  const [profileImage, setProfileImage] = useState<string>('https://i.pravatar.cc/150?img=11');
+
+  useEffect(() => {
+    const loadProfileImage = async () => {
+      try {
+        let savedImage: string | null = null;
+        if (Platform.OS === 'web') {
+          if (typeof window !== 'undefined') {
+            savedImage = localStorage.getItem('user_profile_image');
+          }
+        } else {
+          savedImage = await SecureStore.getItemAsync('user_profile_image');
+        }
+        if (savedImage) {
+          setProfileImage(savedImage);
+        }
+      } catch (e) {
+        console.error('Error loading saved profile image:', e);
+      }
+    };
+    loadProfileImage();
   }, []);
 
   return (
@@ -100,12 +210,12 @@ export default function DashboardIndex() {
 
           <View style={tw`flex-row justify-between items-center relative z-10`}>
             <View style={tw`flex-row items-center`}>
-              <View style={tw`shadow-sm rounded-full bg-white/20 p-1 mr-4`}>
+              <TouchableOpacity onPress={() => router.navigate('/(profile)')} style={tw`shadow-sm rounded-full bg-white/20 p-1 mr-4`}>
                 <Image
-                  source={{ uri: 'https://i.pravatar.cc/150?img=11' }}
+                  source={{ uri: profileImage }}
                   style={tw`w-14 h-14 rounded-full border-2 border-white`}
                 />
-              </View>
+              </TouchableOpacity>
               <View>
                 <Text style={tw`text-white/90 text-sm font-medium mb-1 tracking-wide`}>{greeting}</Text>
                 {loading ? (
@@ -115,8 +225,8 @@ export default function DashboardIndex() {
                 )}
               </View>
             </View>
-            <TouchableOpacity style={tw`p-2 relative`}>
-              <Ionicons name="notifications-outline" size={28} color="white" />
+            <TouchableOpacity style={tw`bg-white w-11 h-11 rounded-full items-center justify-center shadow-sm`}>
+              <Ionicons name="notifications-outline" size={22} color="#2ea89c" />
             </TouchableOpacity>
           </View>
         </View>
@@ -206,29 +316,36 @@ export default function DashboardIndex() {
         <View style={tw`px-6 mb-8`}>
           <View style={tw`flex-row justify-between items-center mb-5`}>
             <Text style={tw`text-xl font-bold text-gray-800`}>Kunjungan Terakhir</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.navigate('/(rekam_medis)')}>
               <Text style={tw`text-[#2ea89c] font-bold text-sm`}>Lihat semua</Text>
             </TouchableOpacity>
           </View>
 
           {/* List Kunjungan */}
-          {[
-            { id: 1, rs: 'RS Pondok Indah', doctor: 'dr. Sarah Wijaya, Sp.PD' },
-            { id: 2, rs: 'RS Janadra', doctor: 'dr. Luna Jaya, Sp.PD' },
-            { id: 3, rs: 'Klinik Hamil Sehat', doctor: 'dr. Soetomo, Sp.PD' },
-            { id: 4, rs: 'RS Pondok Indah', doctor: 'dr. Sarah Wijaya, Sp.PD' },
-          ].map((item, index) => (
-            <TouchableOpacity key={item.id} style={tw`bg-white border border-gray-100 rounded-3xl p-4 mb-3 flex-row items-center shadow-sm`}>
-              <View style={tw`w-14 h-14 rounded-2xl bg-[#eafaf8] items-center justify-center mr-4`}>
-                <MaterialCommunityIcons name="stethoscope" size={26} color="#2ea89c" />
-              </View>
-              <View style={tw`flex-1`}>
-                <Text style={tw`font-bold text-gray-800 text-base mb-1`}>{item.rs}</Text>
-                <Text style={tw`text-gray-500 text-sm`}>{item.doctor}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
-            </TouchableOpacity>
-          ))}
+          {loadingVisits ? (
+            <ActivityIndicator size="small" color="#2ea89c" style={tw`py-6`} />
+          ) : (
+            visits.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                onPress={() => router.navigate({ pathname: '/(rekam_medis)', params: { id: item.id } })}
+                style={tw`bg-white border border-gray-100 rounded-3xl p-4 mb-3 flex-row items-center shadow-sm`}
+                activeOpacity={0.7}
+              >
+                <View style={tw`w-14 h-14 rounded-2xl bg-[#eafaf8] items-center justify-center mr-4`}>
+                  <MaterialCommunityIcons name="stethoscope" size={26} color="#2ea89c" />
+                </View>
+                <View style={tw`flex-1`}>
+                  <Text style={tw`font-bold text-gray-800 text-base mb-1`}>{item.rs}</Text>
+                  <Text style={tw`text-gray-500 text-sm`}>{item.doctor}</Text>
+                  {item.date ? (
+                    <Text style={tw`text-[#2ea89c] text-xs font-medium mt-1`}>{item.date}</Text>
+                  ) : null}
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
+              </TouchableOpacity>
+            ))
+          )}
         </View>
       </ScrollView>
 

@@ -60,8 +60,8 @@ function RekamMedisScreen() {
   const searchBarHeight = useRef(new Animated.Value(0)).current;
   const [toastMessage, setToastMessage] = useState('');
 
-  // Mock Medical Records
-  const medicalRecords: MedicalRecord[] = [
+  // Default Medical Records Fallback
+  const defaultRecords: MedicalRecord[] = [
     {
       id: '1',
       title: 'Pemeriksaan Jantung',
@@ -94,6 +94,56 @@ function RekamMedisScreen() {
     },
   ];
 
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>(defaultRecords);
+
+  const fetchRecords = async (patientId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('medical_documents')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false });
+
+      if (data && data.length > 0) {
+        const formatted: MedicalRecord[] = data.map((doc: any) => ({
+          id: String(doc.id),
+          title: doc.title || doc.diagnosis || 'Pemeriksaan Medis',
+          date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : (doc.date || 'Terbaru'),
+          relativeDate: 'Terbaru',
+          description: doc.description || doc.notes || 'Hasil pemeriksaan dan catatan medis pasien.',
+          hash: doc.hash || doc.tx_hash || '0x' + Math.random().toString(16).substring(2, 18),
+          type: (doc.type === 'Lab' || doc.type === 'Resep') ? doc.type : 'Pemeriksaan',
+          imageUrl: doc.image_url || 'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?w=600&auto=format&fit=crop&q=80',
+        }));
+        setMedicalRecords(formatted);
+      } else {
+        const { data: recData } = await supabase
+          .from('medical_records')
+          .select('*')
+          .eq('patient_id', patientId)
+          .order('created_at', { ascending: false });
+
+        if (recData && recData.length > 0) {
+          const formatted: MedicalRecord[] = recData.map((doc: any) => ({
+            id: String(doc.id),
+            title: doc.title || doc.diagnosis || 'Pemeriksaan Medis',
+            date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : (doc.date || 'Terbaru'),
+            relativeDate: 'Terbaru',
+            description: doc.description || doc.notes || 'Hasil pemeriksaan dan catatan medis pasien.',
+            hash: doc.hash || doc.tx_hash || '0x' + Math.random().toString(16).substring(2, 18),
+            type: (doc.type === 'Lab' || doc.type === 'Resep') ? doc.type : 'Pemeriksaan',
+            imageUrl: doc.image_url || 'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?w=600&auto=format&fit=crop&q=80',
+          }));
+          setMedicalRecords(formatted);
+        } else {
+          setMedicalRecords(defaultRecords);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching medical records:', err);
+    }
+  };
+
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -108,6 +158,7 @@ function RekamMedisScreen() {
           if (data && !error) {
             setPatientData(data);
             patientDataCache.set(data);
+            fetchRecords(data.id);
           }
         }
       } catch (err) {
@@ -119,6 +170,28 @@ function RekamMedisScreen() {
 
     loadUserData();
   }, []);
+
+  useEffect(() => {
+    if (!patientData?.id) return;
+    const channelName = `records-live-${patientData.id}-${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'medical_documents', filter: `patient_id=eq.${patientData.id}` },
+        () => fetchRecords(patientData.id)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'medical_records', filter: `patient_id=eq.${patientData.id}` },
+        () => fetchRecords(patientData.id)
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [patientData?.id]);
 
   // Filter and Search logic
   const filteredRecords = medicalRecords.filter((record) => {

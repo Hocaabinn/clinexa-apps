@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { Buffer } from 'buffer';
 import * as bip39 from 'bip39';
+import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 import { patientDataCache, useAuth } from '../../constants/auth';
 
@@ -35,6 +36,80 @@ export default function ProfileScreen() {
   const { logout } = useAuth();
   const [patientData, setPatientData] = useState<FullPatientData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileImage, setProfileImage] = useState<string>('https://i.pravatar.cc/150?img=11');
+
+  // Load saved custom profile image
+  useEffect(() => {
+    const loadProfileImage = async () => {
+      try {
+        let savedImage: string | null = null;
+        if (Platform.OS === 'web') {
+          if (typeof window !== 'undefined') {
+            savedImage = localStorage.getItem('user_profile_image');
+          }
+        } else {
+          savedImage = await SecureStore.getItemAsync('user_profile_image');
+        }
+        if (savedImage) {
+          setProfileImage(savedImage);
+        }
+      } catch (e) {
+        console.error('Error loading saved profile image:', e);
+      }
+    };
+    loadProfileImage();
+  }, []);
+
+  const handlePickImage = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = (e: any) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const result = event.target?.result as string;
+              if (result) {
+                setProfileImage(result);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('user_profile_image', result);
+                }
+              }
+            };
+            reader.readAsDataURL(file);
+          }
+        };
+        input.click();
+        return;
+      }
+
+      // Request media library permission on iOS/Android
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert('Izin Ditolak', 'Izin galeri diperlukan untuk mengganti foto profil.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0].uri) {
+        const imageUri = result.assets[0].uri;
+        setProfileImage(imageUri);
+        await SecureStore.setItemAsync('user_profile_image', imageUri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Gagal', 'Terjadi kesalahan saat memilih foto profil.');
+    }
+  };
 
   // Helper to format Indonesian birth date (e.g. 1995-05-12 -> 12 Mei 1995)
   const formatDateIndonesian = (dateStr?: string) => {
@@ -153,27 +228,26 @@ export default function ProfileScreen() {
 
         {/* Profile Avatar and Name */}
         <View style={tw`items-center -mt-16 mb-6 px-6`}>
-          <View style={tw`relative`}>
+          <TouchableOpacity onPress={handlePickImage} activeOpacity={0.9} style={tw`relative`}>
             <View style={[
               tw`bg-white rounded-full p-1`,
               { elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 }
             ]}>
               <Image
-                source={{ uri: 'https://i.pravatar.cc/150?img=11' }}
+                source={{ uri: profileImage }}
                 style={tw`w-28 h-28 rounded-full`}
               />
             </View>
             {/* Camera Overlay Icon */}
-            <TouchableOpacity
+            <View
               style={[
                 tw`absolute bottom-1 right-1 bg-[#2ea89c] w-8 h-8 rounded-full items-center justify-center border-2 border-white`,
                 { elevation: 2 }
               ]}
-              activeOpacity={0.8}
             >
               <Ionicons name="camera" size={16} color="white" />
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
 
           {/* Name & Account ID */}
           <Text style={tw`text-gray-800 font-extrabold text-xl mt-4 text-center`}>

@@ -233,9 +233,9 @@ export default function RequestAccessScreen() {
 
                         {/* Instructions Box */}
                         <View style={tw`bg-white rounded-3xl p-6 border border-[#d8dee8]`}>
-                            <Text style={tw`text-[#0b4771] text-lg font-medium mb-4`}>Petunjuk Penggunaan</Text>
+                            <Text style={tw`text-[#0b4771] text-lg font-medium mb-5`}>Petunjuk Penggunaan</Text>
 
-                            <View style={tw`gap-4`}>
+                            <View style={[tw`gap-4`, { flexDirection: Platform.OS === 'web' ? 'row' as const : 'column' as const, flexWrap: 'wrap' as const }]}>
                                 <InstructionStep
                                     number="1"
                                     text="Minta pasien untuk membuka aplikasi Clinexa Pasien pada perangkat mereka."
@@ -263,11 +263,11 @@ export default function RequestAccessScreen() {
 
 function InstructionStep({ number, text }: { number: string; text: string }) {
     return (
-        <View style={tw`flex-row items-start`}>
-            <View style={tw`bg-[#eef1f5] w-6 h-6 rounded-full items-center justify-center mr-3 mt-0.5`}>
-                <Text style={tw`text-[#0b4771] text-xs font-bold`}>{number}</Text>
+        <View style={[tw`items-center`, { flex: 1, minWidth: Platform.OS === 'web' ? 120 : undefined }]}>
+            <View style={tw`bg-[#e0f6f4] w-10 h-10 rounded-full items-center justify-center mb-3`}>
+                <Text style={tw`text-[#1ba39a] text-sm font-bold`}>{number}</Text>
             </View>
-            <Text style={tw`flex-1 text-[#6d7f95] text-sm leading-5 font-light`}>
+            <Text style={tw`text-[#6d7f95] text-sm leading-5 font-light text-center`}>
                 {text}
             </Text>
         </View>
