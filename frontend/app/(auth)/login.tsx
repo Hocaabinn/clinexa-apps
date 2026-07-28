@@ -222,15 +222,16 @@ export default function LoginScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      <SafeAreaView style={{ backgroundColor: '#1BA098' }} edges={['top']} />
+      <StatusBar barStyle="light-content" translucent backgroundColor="#1BA098" />
 
       {/* Top Navbar */}
       <View style={styles.navbarContainer}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton} activeOpacity={0.6}>
-          <Ionicons name="chevron-back" size={26} color="#0F172A" />
+          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.navbarTitle}>Memuat Akun</Text>
+        <Text style={[styles.navbarTitle, { color: '#FFFFFF' }]}>Memuat Akun</Text>
         <View style={styles.spacer} />
       </View>
 
@@ -485,14 +486,14 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1BA098',
   },
   container: {
     flex: 1,
@@ -503,8 +504,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     height: 56,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9', // Subtle divider under navbar
+    borderBottomWidth: 0,
+    backgroundColor: '#1BA098',
     paddingTop: Platform.OS === 'android' ? 10 : 0,
   },
   backButton: {

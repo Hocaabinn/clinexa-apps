@@ -119,6 +119,16 @@ export default function SeedPhraseScreen() {
 
             const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
 
+            // Clean/sanitize blood_type to ensure it passes database check constraint (must be NOT NULL: A, B, AB, or O)
+            let cleanBloodType = 'O';
+            if (pendingData.blood_type) {
+                const upper = String(pendingData.blood_type).trim().toUpperCase();
+                if (upper.includes('AB')) cleanBloodType = 'AB';
+                else if (upper.includes('A')) cleanBloodType = 'A';
+                else if (upper.includes('B')) cleanBloodType = 'B';
+                else if (upper.includes('O')) cleanBloodType = 'O';
+            }
+
             // 3. Insert to Supabase patients table
             const { error } = await supabase
                 .from('patients')
@@ -127,7 +137,7 @@ export default function SeedPhraseScreen() {
                     name: pendingData.name,
                     gender: pendingData.gender,
                     birth_date: pendingData.birth_date,
-                    blood_type: pendingData.blood_type,
+                    blood_type: cleanBloodType,
                     wallet_address: walletAddress
                 });
 

@@ -8,7 +8,10 @@ import {
   StatusBar,
   Platform,
   ActivityIndicator,
-  Alert
+  Alert,
+  Modal,
+  TextInput,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -22,6 +25,21 @@ import { supabase } from '../../lib/supabase';
 import { patientDataCache, useAuth } from '../../constants/auth';
 
 global.Buffer = global.Buffer || Buffer;
+
+const { width } = Dimensions.get('window');
+
+const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
+const MONTHS = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+const YEARS = Array.from({ length: 107 }, (_, i) => String(2026 - i));
+
+const getDaysInMonth = (monthName: string, yearStr: string) => {
+  const monthIndex = MONTHS.indexOf(monthName);
+  const year = parseInt(yearStr) || 2000;
+  return new Date(year, monthIndex + 1, 0).getDate();
+};
 
 interface FullPatientData {
   id: string;
@@ -37,6 +55,16 @@ export default function ProfileScreen() {
   const [patientData, setPatientData] = useState<FullPatientData | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileImage, setProfileImage] = useState<string>('https://i.pravatar.cc/150?img=11');
+
+  // State untuk Modal Edit Informasi Pribadi
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editGender, setEditGender] = useState('L');
+  const [editDay, setEditDay] = useState('01');
+  const [editMonth, setEditMonth] = useState('Januari');
+  const [editYear, setEditYear] = useState('2000');
+  const [editBloodType, setEditBloodType] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Load saved custom profile image
   useEffect(() => {
@@ -86,7 +114,6 @@ export default function ProfileScreen() {
         return;
       }
 
-      // Request media library permission on iOS/Android
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
         Alert.alert('Izin Ditolak', 'Izin galeri diperlukan untuk mengganti foto profil.');
@@ -111,7 +138,6 @@ export default function ProfileScreen() {
     }
   };
 
-  // Helper to format Indonesian birth date (e.g. 1995-05-12 -> 12 Mei 1995)
   const formatDateIndonesian = (dateStr?: string) => {
     if (!dateStr) return '-';
     const parts = dateStr.split('-');
@@ -167,6 +193,82 @@ export default function ProfileScreen() {
     loadUserData();
   }, []);
 
+  const handleOpenEditModal = () => {
+    if (!patientData) return;
+    setEditName(patientData.name || '');
+    setEditGender(patientData.gender || 'L');
+    setEditBloodType(patientData.blood_type || '');
+
+    if (patientData.birth_date) {
+      const parts = patientData.birth_date.split('-');
+      if (parts.length === 3) {
+        setEditYear(parts[0]);
+        const monthIdx = parseInt(parts[1]) - 1;
+        setEditMonth(MONTHS[monthIdx] || 'Januari');
+        setEditDay(String(parseInt(parts[2])).padStart(2, '0'));
+      }
+    }
+    setIsEditModalVisible(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!patientData?.id) return;
+    if (!editName.trim()) {
+      Alert.alert('Peringatan', 'Nama lengkap tidak boleh kosong.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const monthIndex = MONTHS.indexOf(editMonth) + 1;
+      const monthStr = String(monthIndex).padStart(2, '0');
+      const formattedBirthDate = `${editYear}-${monthStr}-${editDay}`;
+
+      let cleanBloodType = 'O';
+      if (editBloodType.trim()) {
+        const upper = editBloodType.trim().toUpperCase();
+        if (upper.includes('AB')) cleanBloodType = 'AB';
+        else if (upper.includes('A')) cleanBloodType = 'A';
+        else if (upper.includes('B')) cleanBloodType = 'B';
+        else if (upper.includes('O')) cleanBloodType = 'O';
+      }
+
+      const { error } = await supabase
+        .from('patients')
+        .update({
+          name: editName.trim(),
+          gender: editGender,
+          birth_date: formattedBirthDate,
+          blood_type: cleanBloodType,
+        })
+        .eq('id', patientData.id);
+
+      if (error) {
+        console.error('Error updating patient profile:', error);
+        Alert.alert('Gagal', 'Terjadi kesalahan saat memperbarui profil: ' + error.message);
+        return;
+      }
+
+      const updatedData: FullPatientData = {
+        ...patientData,
+        name: editName.trim(),
+        gender: editGender,
+        birth_date: formattedBirthDate,
+        blood_type: cleanBloodType,
+      };
+
+      setPatientData(updatedData);
+      patientDataCache.set(updatedData);
+      setIsEditModalVisible(false);
+      Alert.alert('Berhasil', 'Informasi pribadi berhasil diperbarui.');
+    } catch (err: any) {
+      console.error('Error in handleSaveProfile:', err);
+      Alert.alert('Error', 'Terjadi kesalahan sistem.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleLogout = async () => {
     Alert.alert(
       'Keluar Akun',
@@ -192,7 +294,8 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-white relative`}>
+    <View style={tw`flex-1 bg-white relative`}>
+      <SafeAreaView style={tw`bg-[#2ea89c]`} edges={['top']} />
       <StatusBar barStyle="light-content" backgroundColor="#2ea89c" />
 
       {/* Main Scroll Content */}
@@ -264,6 +367,7 @@ export default function ProfileScreen() {
         <View style={tw`px-5 mb-5`}>
           <View style={tw`flex-row justify-between items-center mb-4`}>
             <Text style={tw`text-lg font-bold text-gray-800`}>Informasi Pribadi</Text>
+
             {/* Blockchain Verified Badge */}
             <View style={tw`bg-[#e8f6ed] border border-[#dcfce7] px-3 py-1 rounded-full`}>
               <Text style={tw`text-[#16a34a] text-[10px] font-bold`}>Blockchain Verified</Text>
@@ -272,9 +376,18 @@ export default function ProfileScreen() {
 
           {/* Personal Info Box */}
           <View style={[
-            tw`bg-white rounded-[32px] p-6 border border-gray-100`,
+            tw`bg-white rounded-[32px] p-6 border border-gray-100 relative`,
             { elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6 }
           ]}>
+            {/* Edit Button in Top Right of Card */}
+            <TouchableOpacity
+              onPress={handleOpenEditModal}
+              style={tw`absolute top-5 right-5 bg-[#eafaf8] px-3 py-1.5 rounded-full flex-row items-center border border-[#2ea89c]/20 z-10`}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="pencil-sharp" size={13} color="#2ea89c" style={tw`mr-1`} />
+              <Text style={tw`text-[#2ea89c] text-xs font-bold`}>Edit</Text>
+            </TouchableOpacity>
             {/* Nama Lengkap */}
             <View style={tw`mb-4`}>
               <Text style={tw`text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-1`}>
@@ -347,7 +460,6 @@ export default function ProfileScreen() {
             onPress={() => Alert.alert('Recovery Password', 'Fitur pemulihan kata sandi melalui phrase pemulihan.')}
           >
             <View style={tw`flex-row items-center`}>
-              {/* Circular lock-reset icon */}
               <View style={tw`w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3`}>
                 <MaterialCommunityIcons name="lock-reset" size={22} color="#64748b" />
               </View>
@@ -369,6 +481,145 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Modal Edit Informasi Pribadi */}
+      <Modal
+        visible={isEditModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsEditModalVisible(false)}
+      >
+        <View style={tw`flex-1 bg-black/50 justify-end`}>
+          <View style={tw`bg-white rounded-t-[32px] p-6 max-h-[85%]`}>
+            <View style={tw`flex-row justify-between items-center mb-5 border-b border-gray-100 pb-4`}>
+              <Text style={tw`text-lg font-bold text-gray-800`}>Edit Informasi Pribadi</Text>
+              <TouchableOpacity onPress={() => setIsEditModalVisible(false)} style={tw`p-1`}>
+                <Ionicons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled={true}>
+              {/* Edit Nama */}
+              <View style={tw`mb-4`}>
+                <Text style={tw`text-xs font-bold text-gray-500 mb-1.5`}>Nama Lengkap</Text>
+                <View style={tw`border border-gray-200 rounded-xl px-3.5 py-3 bg-gray-50`}>
+                  <TextInput
+                    style={tw`text-sm font-medium text-gray-800 p-0`}
+                    value={editName}
+                    onChangeText={setEditName}
+                    placeholder="Nama Lengkap"
+                  />
+                </View>
+              </View>
+
+              {/* Edit Jenis Kelamin */}
+              <View style={tw`mb-4`}>
+                <Text style={tw`text-xs font-bold text-gray-500 mb-1.5`}>Jenis Kelamin</Text>
+                <View style={tw`flex-row gap-3`}>
+                  <TouchableOpacity
+                    onPress={() => setEditGender('L')}
+                    style={tw`flex-1 py-3 border rounded-xl items-center ${editGender === 'L' ? 'bg-[#eafaf8] border-[#2ea89c]' : 'bg-gray-50 border-gray-200'}`}
+                  >
+                    <Text style={tw`font-bold text-sm ${editGender === 'L' ? 'text-[#2ea89c]' : 'text-gray-600'}`}>Laki-laki</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setEditGender('P')}
+                    style={tw`flex-1 py-3 border rounded-xl items-center ${editGender === 'P' ? 'bg-[#eafaf8] border-[#2ea89c]' : 'bg-gray-50 border-gray-200'}`}
+                  >
+                    <Text style={tw`font-bold text-sm ${editGender === 'P' ? 'text-[#2ea89c]' : 'text-gray-600'}`}>Perempuan</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Edit Tanggal Lahir */}
+              <View style={tw`mb-4`}>
+                <Text style={tw`text-xs font-bold text-gray-500 mb-1.5`}>Tanggal Lahir</Text>
+                <View style={tw`flex-row gap-2 h-36 border border-gray-200 rounded-xl p-2 bg-gray-50`}>
+                  {/* Hari */}
+                  <View style={tw`flex-1 items-center`}>
+                    <Text style={tw`text-[10px] font-bold text-gray-400 mb-1`}>Hari</Text>
+                    <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={false} style={tw`w-full`}>
+                      {DAYS.slice(0, getDaysInMonth(editMonth, editYear)).map((d) => (
+                        <TouchableOpacity
+                          key={d}
+                          onPress={() => setEditDay(d)}
+                          style={tw`py-1.5 items-center rounded-lg my-0.5 ${editDay === d ? 'bg-[#2ea89c]' : ''}`}
+                        >
+                          <Text style={tw`text-xs font-bold ${editDay === d ? 'text-white' : 'text-gray-700'}`}>{d}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  {/* Bulan */}
+                  <View style={tw`flex-[1.5] items-center`}>
+                    <Text style={tw`text-[10px] font-bold text-gray-400 mb-1`}>Bulan</Text>
+                    <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={false} style={tw`w-full`}>
+                      {MONTHS.map((m) => (
+                        <TouchableOpacity
+                          key={m}
+                          onPress={() => setEditMonth(m)}
+                          style={tw`py-1.5 items-center rounded-lg my-0.5 ${editMonth === m ? 'bg-[#2ea89c]' : ''}`}
+                        >
+                          <Text style={tw`text-xs font-bold ${editMonth === m ? 'text-white' : 'text-gray-700'}`} numberOfLines={1}>{m}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  {/* Tahun */}
+                  <View style={tw`flex-1 items-center`}>
+                    <Text style={tw`text-[10px] font-bold text-gray-400 mb-1`}>Tahun</Text>
+                    <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={false} style={tw`w-full`}>
+                      {YEARS.map((y) => (
+                        <TouchableOpacity
+                          key={y}
+                          onPress={() => setEditYear(y)}
+                          style={tw`py-1.5 items-center rounded-lg my-0.5 ${editYear === y ? 'bg-[#2ea89c]' : ''}`}
+                        >
+                          <Text style={tw`text-xs font-bold ${editYear === y ? 'text-white' : 'text-gray-700'}`}>{y}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              </View>
+
+              {/* Edit Golongan Darah */}
+              <View style={tw`mb-6`}>
+                <Text style={tw`text-xs font-bold text-gray-500 mb-1.5`}>Golongan Darah (Opsional)</Text>
+                <View style={tw`border border-gray-200 rounded-xl px-3.5 py-3 bg-gray-50`}>
+                  <TextInput
+                    style={tw`text-sm font-medium text-gray-800 p-0`}
+                    value={editBloodType}
+                    onChangeText={setEditBloodType}
+                    placeholder="Contoh: A, B, AB, O"
+                  />
+                </View>
+              </View>
+
+              {/* Tombol Simpan & Batal */}
+              <View style={tw`flex-row gap-3 mb-4`}>
+                <TouchableOpacity
+                  onPress={() => setIsEditModalVisible(false)}
+                  style={tw`flex-1 py-3.5 border border-gray-300 rounded-xl items-center bg-gray-100`}
+                >
+                  <Text style={tw`font-bold text-gray-600`}>Batal</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSaveProfile}
+                  disabled={isSaving}
+                  style={tw`flex-1 py-3.5 bg-[#2ea89c] rounded-xl items-center shadow-sm`}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <Text style={tw`font-bold text-white`}>Simpan</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Bottom Navigation Bar */}
       <View style={[
@@ -428,6 +679,6 @@ export default function ProfileScreen() {
           <Text style={tw`text-[#2ea89c] text-xs font-medium mt-1`}>Profil</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }

@@ -16,7 +16,8 @@ export default function RiwayatAktivitasScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-white relative`}>
+    <View style={tw`flex-1 bg-white relative`}>
+      <SafeAreaView style={tw`bg-[#2ea89c]`} edges={['top']} />
       <StatusBar barStyle="light-content" backgroundColor="#2ea89c" />
 
       {/* Main Scroll Content */}
@@ -251,6 +252,6 @@ export default function RiwayatAktivitasScreen() {
         </TouchableOpacity>
       </View>
 
-    </SafeAreaView>
+    </View>
   );
 }

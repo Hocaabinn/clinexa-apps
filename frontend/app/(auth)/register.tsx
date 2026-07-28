@@ -45,9 +45,8 @@ export default function RegisterScreen() {
     const [bloodType, setBloodType] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // State untuk custom dropdown (jenis kelamin & golongan darah)
+    // State untuk custom dropdown (jenis kelamin)
     const [showGenderModal, setShowGenderModal] = useState(false);
-    const [showBloodTypeModal, setShowBloodTypeModal] = useState(false);
 
     // State untuk custom date picker (tanggal lahir)
     const [showDatePickerModal, setShowDatePickerModal] = useState(false);
@@ -58,7 +57,7 @@ export default function RegisterScreen() {
     const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
     const dayOptions = DAYS.slice(0, daysInMonth);
 
-    const isFormValid = nik.trim().length === 16 && name.trim() !== '' && gender !== '' && birthDate !== '' && bloodType.trim() !== '' && !isSubmitting;
+    const isFormValid = nik.trim().length === 16 && name.trim() !== '' && gender !== '' && birthDate !== '' && !isSubmitting;
 
     const selectMonth = (month: string) => {
         setSelectedMonth(month);
@@ -77,7 +76,7 @@ export default function RegisterScreen() {
     };
 
     const handleRegister = async () => {
-        if (!nik.trim() || !name.trim() || !gender || !birthDate || !bloodType.trim()) {
+        if (!nik.trim() || !name.trim() || !gender || !birthDate) {
             alert('Silakan lengkapi semua data pendaftaran.');
             return;
         }
@@ -114,12 +113,14 @@ export default function RegisterScreen() {
             const formattedBirthDate = `${selectedYear}-${monthStr}-${selectedDay}`;
 
             // 4. Simpan data pasien ke SecureStore sementara
+            const formattedBloodType = bloodType.trim() ? bloodType.trim().toUpperCase() : null;
+
             const pendingPatientData = {
                 nik: nik.trim(),
                 name: name.trim(),
                 gender: mappedGender,
                 birth_date: formattedBirthDate,
-                blood_type: bloodType.trim(),
+                blood_type: formattedBloodType,
             };
 
             await SecureStore.setItemAsync('pending_patient_data', JSON.stringify(pendingPatientData));
@@ -139,13 +140,9 @@ export default function RegisterScreen() {
         setShowGenderModal(false);
     };
 
-    const selectBloodType = (selectedBloodType: string) => {
-        setBloodType(selectedBloodType);
-        setShowBloodTypeModal(false);
-    };
-
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+            <SafeAreaView style={{ backgroundColor: '#1BA098' }} edges={['top']} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.container}
@@ -243,18 +240,17 @@ export default function RegisterScreen() {
                             <Ionicons name="chevron-down" size={20} color="#999" style={styles.rightIcon} />
                         </TouchableOpacity>
 
-                        {/* Input Golongan Darah (Custom Dropdown) */}
-                        <TouchableOpacity
-                            style={styles.inputWrapper}
-                            activeOpacity={0.7}
-                            onPress={() => setShowBloodTypeModal(true)}
-                        >
+                        {/* Input Golongan Darah */}
+                        <View style={styles.inputWrapper}>
                             <Ionicons name="water-outline" size={20} color="#999" style={styles.inputIcon} />
-                            <Text style={[styles.inputText, !bloodType && styles.placeholderText]}>
-                                {bloodType || 'Pilih Golongan Darah'}
-                            </Text>
-                            <Ionicons name="chevron-down" size={20} color="#999" style={styles.rightIcon} />
-                        </TouchableOpacity>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Isi Golongan Darah (Opsional)"
+                                placeholderTextColor="#999"
+                                value={bloodType}
+                                onChangeText={setBloodType}
+                            />
+                        </View>
 
                         {/* Info Keamanan & Privasi */}
                         <View style={styles.infoBox}>
@@ -442,54 +438,14 @@ export default function RegisterScreen() {
                 </TouchableOpacity>
             </Modal>
 
-            {/* Modal Golongan Darah */}
-            <Modal
-                visible={showBloodTypeModal}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={() => setShowBloodTypeModal(false)}
-            >
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setShowBloodTypeModal(false)}
-                >
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Pilih Golongan Darah</Text>
-
-                        <TouchableOpacity style={styles.modalOption} onPress={() => selectBloodType('A')}>
-                            <Text style={styles.modalOptionText}>A</Text>
-                        </TouchableOpacity>
-
-                        <View style={styles.modalDivider} />
-
-                        <TouchableOpacity style={styles.modalOption} onPress={() => selectBloodType('B')}>
-                            <Text style={styles.modalOptionText}>B</Text>
-                        </TouchableOpacity>
-
-                        <View style={styles.modalDivider} />
-
-                        <TouchableOpacity style={styles.modalOption} onPress={() => selectBloodType('AB')}>
-                            <Text style={styles.modalOptionText}>AB</Text>
-                        </TouchableOpacity>
-
-                        <View style={styles.modalDivider} />
-
-                        <TouchableOpacity style={styles.modalOption} onPress={() => selectBloodType('O')}>
-                            <Text style={styles.modalOptionText}>O</Text>
-                        </TouchableOpacity>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
-
-        </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#ffffffff', // Background Teal header
+        backgroundColor: '#1BA098',
     },
     container: {
         flex: 1,

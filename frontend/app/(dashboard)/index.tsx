@@ -197,7 +197,8 @@ export default function DashboardIndex() {
   }, []);
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-white relative`}>
+    <View style={tw`flex-1 bg-white relative`}>
+      <SafeAreaView style={tw`bg-[#2ea89c]`} edges={['top']} />
       <StatusBar barStyle="light-content" backgroundColor="#2ea89c" />
 
       {/* Konten Utama */}
@@ -234,118 +235,120 @@ export default function DashboardIndex() {
         {/* Account ID Card */}
         <View style={tw`px-5 -mt-10 mb-8`}>
           <View style={[
-            tw`bg-white rounded-3xl p-6 flex-row justify-between items-start`,
+            tw`bg-[#2ea89c] rounded-3xl p-6 flex-row justify-between items-start`,
             Platform.OS === 'ios' ? tw`shadow-sm` : tw`shadow-md`,
-            { elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10 }
+            { elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 10 }
           ]}>
             <View style={tw`flex-1 pr-2`}>
-              <Text style={tw`text-gray-500 text-xs font-bold tracking-wider mb-2`}>ACCOUNT ID</Text>
+              <Text style={tw`text-white/70 text-xs font-bold tracking-wider mb-2`}>ACCOUNT ID</Text>
               {loading ? (
-                <ActivityIndicator size="small" color="#2ea89c" style={tw`self-start mt-1`} />
+                <ActivityIndicator size="small" color="#ffffff" style={tw`self-start mt-1`} />
               ) : (
                 <>
-                  <Text style={tw`text-[#2ea89c] text-sm font-medium tracking-wide`} numberOfLines={1} ellipsizeMode="middle">{patientData?.id || '...'}</Text>
+                  <Text style={tw`text-white text-sm font-medium tracking-wide`} numberOfLines={1} ellipsizeMode="middle">{patientData?.id || '...'}</Text>
                 </>
               )}
             </View>
-            <View style={tw`bg-[#e8f6ed] px-3 py-1.5 rounded-full flex-row items-center ml-2 mt-1`}>
-              <View style={tw`w-2 h-2 rounded-full bg-[#3b82f6] mr-1.5 ${Platform.OS === 'ios' ? 'bg-[#4ade80]' : 'bg-[#16a34a]'}`} />
-              <Text style={tw`text-[#16a34a] text-xs font-bold`}>Terverifikasi</Text>
+            <View style={tw`bg-white/20 px-3 py-1.5 rounded-full flex-row items-center ml-2 mt-1`}>
+              <View style={tw`w-2 h-2 rounded-full bg-[#4ade80] mr-1.5`} />
+              <Text style={tw`text-white text-xs font-bold`}>Terverifikasi</Text>
             </View>
           </View>
         </View>
+        {/* White content area below header */}
+        <View style={tw`bg-white rounded-t-[30px] -mt-2 pt-6 pb-4`}>
+          {/* Layanan Cepat */}
+          <View style={tw`px-6 mb-8`}>
+            <Text style={tw`text-xl font-bold text-gray-800 mb-5`}>Layanan Cepat</Text>
+            <View style={tw`flex-row gap-4`}>
+              {/* Left Large Card */}
+              <TouchableOpacity
+                onPress={() => router.navigate({ pathname: '/(rekam_medis)', params: { filter: 'Semua' } })}
+                style={[
+                  tw`bg-[#f0fafa] rounded-3xl p-5 flex-1 justify-between min-h-[160px]`,
+                  Platform.OS === 'ios' ? tw`shadow-sm` : tw`shadow-md`,
+                  { elevation: 3, shadowColor: '#1e615e', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 8 }
+                ]}
+                activeOpacity={0.8}
+              >
+                <View style={tw`w-12 h-12 rounded-full bg-[#1e615e] items-center justify-center mb-6 mt-1 ml-1`}>
+                  <MaterialCommunityIcons name="medical-bag" size={24} color="white" />
+                </View>
+                <Text style={tw`text-[#1e615e] font-bold text-base leading-tight pr-2`}>
+                  Hasil Rekam Medis Terkini
+                </Text>
+              </TouchableOpacity>
 
-        {/* Layanan Cepat */}
-        <View style={tw`px-6 mb-8`}>
-          <Text style={tw`text-xl font-bold text-gray-800 mb-5`}>Layanan Cepat</Text>
-          <View style={tw`flex-row gap-4`}>
-            {/* Left Large Card */}
-            <TouchableOpacity
-              onPress={() => router.navigate({ pathname: '/(rekam_medis)', params: { filter: 'Semua' } })}
-              style={[
-                tw`bg-[#f0fafa] rounded-3xl p-5 flex-1 justify-between min-h-[160px]`,
-                Platform.OS === 'ios' ? tw`shadow-sm` : tw`shadow-md`,
-                { elevation: 3, shadowColor: '#1e615e', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 8 }
-              ]}
-              activeOpacity={0.8}
-            >
-              <View style={tw`w-12 h-12 rounded-full bg-[#1e615e] items-center justify-center mb-6 mt-1 ml-1`}>
-                <MaterialCommunityIcons name="medical-bag" size={24} color="white" />
+              {/* Right Smaller Cards */}
+              <View style={tw`flex-1 gap-4`}>
+                <TouchableOpacity
+                  onPress={() => router.navigate({ pathname: '/(rekam_medis)', params: { filter: 'Resep' } })}
+                  style={[
+                    tw`bg-[#f5fbf6] rounded-3xl p-4 flex-row items-center flex-1`,
+                    Platform.OS === 'ios' ? tw`shadow-sm` : tw`shadow-md`,
+                    { elevation: 2, shadowColor: '#348b48', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 6 }
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <View style={tw`w-10 h-10 rounded-full bg-[#e4f5e9] items-center justify-center mr-3`}>
+                    <MaterialCommunityIcons name="pill" size={20} color="#348b48" />
+                  </View>
+                  <Text style={tw`text-[#348b48] font-bold text-sm flex-1`}>Resep Obat</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => router.navigate({ pathname: '/(rekam_medis)', params: { filter: 'Lab' } })}
+                  style={[
+                    tw`bg-[#fff7f5] rounded-3xl p-4 flex-row items-center flex-1`,
+                    Platform.OS === 'ios' ? tw`shadow-sm` : tw`shadow-md`,
+                    { elevation: 2, shadowColor: '#b14e4e', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 6 }
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <View style={tw`w-10 h-10 rounded-full bg-[#ffecec] items-center justify-center mr-3`}>
+                    <MaterialCommunityIcons name="flask-outline" size={20} color="#b14e4e" />
+                  </View>
+                  <Text style={tw`text-[#b14e4e] font-bold text-sm flex-1`}>Hasil Lab</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={tw`text-[#1e615e] font-bold text-base leading-tight pr-2`}>
-                Hasil Rekam Medis Terkini
-              </Text>
-            </TouchableOpacity>
-
-            {/* Right Smaller Cards */}
-            <View style={tw`flex-1 gap-4`}>
-              <TouchableOpacity
-                onPress={() => router.navigate({ pathname: '/(rekam_medis)', params: { filter: 'Resep' } })}
-                style={[
-                  tw`bg-[#f5fbf6] rounded-3xl p-4 flex-row items-center flex-1`,
-                  Platform.OS === 'ios' ? tw`shadow-sm` : tw`shadow-md`,
-                  { elevation: 2, shadowColor: '#348b48', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 6 }
-                ]}
-                activeOpacity={0.8}
-              >
-                <View style={tw`w-10 h-10 rounded-full bg-[#e4f5e9] items-center justify-center mr-3`}>
-                  <MaterialCommunityIcons name="pill" size={20} color="#348b48" />
-                </View>
-                <Text style={tw`text-[#348b48] font-bold text-sm flex-1`}>Resep Obat</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => router.navigate({ pathname: '/(rekam_medis)', params: { filter: 'Lab' } })}
-                style={[
-                  tw`bg-[#fff7f5] rounded-3xl p-4 flex-row items-center flex-1`,
-                  Platform.OS === 'ios' ? tw`shadow-sm` : tw`shadow-md`,
-                  { elevation: 2, shadowColor: '#b14e4e', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 6 }
-                ]}
-                activeOpacity={0.8}
-              >
-                <View style={tw`w-10 h-10 rounded-full bg-[#ffecec] items-center justify-center mr-3`}>
-                  <MaterialCommunityIcons name="flask-outline" size={20} color="#b14e4e" />
-                </View>
-                <Text style={tw`text-[#b14e4e] font-bold text-sm flex-1`}>Hasil Lab</Text>
-              </TouchableOpacity>
             </View>
           </View>
-        </View>
 
-        {/* Kunjungan Terakhir */}
-        <View style={tw`px-6 mb-8`}>
-          <View style={tw`flex-row justify-between items-center mb-5`}>
-            <Text style={tw`text-xl font-bold text-gray-800`}>Kunjungan Terakhir</Text>
-            <TouchableOpacity onPress={() => router.navigate('/(rekam_medis)')}>
-              <Text style={tw`text-[#2ea89c] font-bold text-sm`}>Lihat semua</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* List Kunjungan */}
-          {loadingVisits ? (
-            <ActivityIndicator size="small" color="#2ea89c" style={tw`py-6`} />
-          ) : (
-            visits.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                onPress={() => router.navigate({ pathname: '/(rekam_medis)', params: { id: item.id } })}
-                style={tw`bg-white border border-gray-100 rounded-3xl p-4 mb-3 flex-row items-center shadow-sm`}
-                activeOpacity={0.7}
-              >
-                <View style={tw`w-14 h-14 rounded-2xl bg-[#eafaf8] items-center justify-center mr-4`}>
-                  <MaterialCommunityIcons name="stethoscope" size={26} color="#2ea89c" />
-                </View>
-                <View style={tw`flex-1`}>
-                  <Text style={tw`font-bold text-gray-800 text-base mb-1`}>{item.rs}</Text>
-                  <Text style={tw`text-gray-500 text-sm`}>{item.doctor}</Text>
-                  {item.date ? (
-                    <Text style={tw`text-[#2ea89c] text-xs font-medium mt-1`}>{item.date}</Text>
-                  ) : null}
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
+          {/* Kunjungan Terakhir */}
+          <View style={tw`px-6 mb-8`}>
+            <View style={tw`flex-row justify-between items-center mb-5`}>
+              <Text style={tw`text-xl font-bold text-gray-800`}>Kunjungan Terakhir</Text>
+              <TouchableOpacity onPress={() => router.navigate('/(rekam_medis)')}>
+                <Text style={tw`text-[#2ea89c] font-bold text-sm`}>Lihat semua</Text>
               </TouchableOpacity>
-            ))
-          )}
+            </View>
+
+            {/* List Kunjungan */}
+            {loadingVisits ? (
+              <ActivityIndicator size="small" color="#2ea89c" style={tw`py-6`} />
+            ) : (
+              visits.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => router.navigate({ pathname: '/(rekam_medis)', params: { id: item.id } })}
+                  style={tw`bg-white border border-gray-100 rounded-3xl p-4 mb-3 flex-row items-center shadow-sm`}
+                  activeOpacity={0.7}
+                >
+                  <View style={tw`w-14 h-14 rounded-2xl bg-[#eafaf8] items-center justify-center mr-4`}>
+                    <MaterialCommunityIcons name="stethoscope" size={26} color="#2ea89c" />
+                  </View>
+                  <View style={tw`flex-1`}>
+                    <Text style={tw`font-bold text-gray-800 text-base mb-1`}>{item.rs}</Text>
+                    <Text style={tw`text-gray-500 text-sm`}>{item.doctor}</Text>
+                    {item.date ? (
+                      <Text style={tw`text-[#2ea89c] text-xs font-medium mt-1`}>{item.date}</Text>
+                    ) : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
         </View>
       </ScrollView>
 
@@ -408,6 +411,6 @@ export default function DashboardIndex() {
         </TouchableOpacity>
       </View>
 
-    </SafeAreaView>
+    </View>
   );
 }

@@ -250,7 +250,8 @@ function RekamMedisScreen() {
   };
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-white relative`}>
+    <View style={tw`flex-1 bg-white relative`}>
+      <SafeAreaView style={tw`bg-[#2ea89c]`} edges={['top']} />
       <StatusBar barStyle="light-content" backgroundColor="#2ea89c" />
 
       {/* Toast Notification */}
@@ -548,7 +549,7 @@ function RekamMedisScreen() {
           <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>Profil</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
