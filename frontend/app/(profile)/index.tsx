@@ -585,14 +585,17 @@ export default function ProfileScreen() {
 
               {/* Edit Golongan Darah */}
               <View style={tw`mb-6`}>
-                <Text style={tw`text-xs font-bold text-gray-500 mb-1.5`}>Golongan Darah (Opsional)</Text>
-                <View style={tw`border border-gray-200 rounded-xl px-3.5 py-3 bg-gray-50`}>
-                  <TextInput
-                    style={tw`text-sm font-medium text-gray-800 p-0`}
-                    value={editBloodType}
-                    onChangeText={setEditBloodType}
-                    placeholder="Contoh: A, B, AB, O"
-                  />
+                <Text style={tw`text-xs font-bold text-gray-500 mb-1.5`}>Golongan Darah</Text>
+                <View style={tw`flex-row gap-2`}>
+                  {['A', 'B', 'AB', 'O'].map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      onPress={() => setEditBloodType(type)}
+                      style={tw`flex-1 py-3 border rounded-xl items-center ${editBloodType === type ? 'bg-[#eafaf8] border-[#2ea89c]' : 'bg-gray-50 border-gray-200'}`}
+                    >
+                      <Text style={tw`font-bold text-sm ${editBloodType === type ? 'text-[#2ea89c]' : 'text-gray-600'}`}>{type}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
 

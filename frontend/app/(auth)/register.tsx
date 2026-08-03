@@ -42,7 +42,6 @@ export default function RegisterScreen() {
     const [name, setName] = useState('');
     const [gender, setGender] = useState('');
     const [birthDate, setBirthDate] = useState('');
-    const [bloodType, setBloodType] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // State untuk custom dropdown (jenis kelamin)
@@ -113,14 +112,11 @@ export default function RegisterScreen() {
             const formattedBirthDate = `${selectedYear}-${monthStr}-${selectedDay}`;
 
             // 4. Simpan data pasien ke SecureStore sementara
-            const formattedBloodType = bloodType.trim() ? bloodType.trim().toUpperCase() : null;
-
             const pendingPatientData = {
                 nik: nik.trim(),
                 name: name.trim(),
                 gender: mappedGender,
                 birth_date: formattedBirthDate,
-                blood_type: formattedBloodType,
             };
 
             await SecureStore.setItemAsync('pending_patient_data', JSON.stringify(pendingPatientData));
@@ -240,17 +236,6 @@ export default function RegisterScreen() {
                             <Ionicons name="chevron-down" size={20} color="#999" style={styles.rightIcon} />
                         </TouchableOpacity>
 
-                        {/* Input Golongan Darah */}
-                        <View style={styles.inputWrapper}>
-                            <Ionicons name="water-outline" size={20} color="#999" style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Isi Golongan Darah (Opsional)"
-                                placeholderTextColor="#999"
-                                value={bloodType}
-                                onChangeText={setBloodType}
-                            />
-                        </View>
 
                         {/* Info Keamanan & Privasi */}
                         <View style={styles.infoBox}>
