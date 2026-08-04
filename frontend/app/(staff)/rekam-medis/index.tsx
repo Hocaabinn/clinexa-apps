@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import tw from 'twrnc';
@@ -18,11 +18,14 @@ interface RecordItem {
 
 export default function RekamMedisList() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('Semua');
   const [stats, setStats] = useState({ granted: 0, pending: 0, denied: 0 });
+  const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 1024;
 
   useEffect(() => {
     fetchRecords();
@@ -122,38 +125,41 @@ export default function RekamMedisList() {
   });
 
   return (
-    <ScrollView style={tw`flex-1 bg-[#f4f6f8] px-10 py-8`} contentContainerStyle={tw`pb-20`}>
-      <View style={tw`flex-row justify-between items-center mb-10`}>
-        <Text style={tw`text-[#0b4771] text-3xl font-semibold`}>Rekam Medis</Text>
+    <ScrollView
+      style={[tw`flex-1 bg-[#f4f6f8]`, tw`${isMobile ? 'px-4 py-5' : isTablet ? 'px-6 py-6' : 'px-10 py-8'}`]}
+      contentContainerStyle={tw`pb-20`}
+    >
+      <View style={[tw`mb-10`, isMobile ? tw`items-stretch gap-4` : tw`flex-row justify-between items-center`]}>
+        <Text style={tw`text-[#0b4771] ${isMobile ? 'text-2xl' : 'text-3xl'} font-semibold`}>Rekam Medis</Text>
         
         <TouchableOpacity 
-          style={tw`bg-[#1ba39a] px-6 py-3.5 rounded-xl flex-row items-center`}
+          style={[tw`bg-[#1ba39a] px-6 py-3.5 rounded-xl flex-row items-center justify-center`, isMobile ? tw`w-full` : null]}
           onPress={() => router.push('/(staff)/rekam-medis/tambah')}
         >
-          <Ionicons name="cloud-upload-outline" size={20} color="white" />
-          <Text style={tw`text-white font-medium ml-2 text-base`}>Upload Rekam Medis</Text>
+          <Ionicons name="add-circle-outline" size={20} color="white" />
+          <Text style={tw`text-white font-medium ml-2 text-base`}>Tambahkan Rekam Medis</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={tw`flex-row gap-6 mb-8`}>
-        <View style={tw`flex-1 bg-white rounded-2xl p-6 shadow-sm border border-[#e2e8f0]`}>
-          <View style={tw`w-12 h-12 bg-[#eef8f2] rounded-xl items-center justify-center mb-6`}>
+      <View style={[tw`mb-8`, isMobile ? tw`gap-4` : tw`flex-row gap-6`]}>
+        <View style={tw`flex-1 bg-white rounded-2xl ${isMobile ? 'p-4' : 'p-6'} shadow-sm border border-[#e2e8f0]`}>
+          <View style={tw`w-12 h-12 bg-[#eef8f2] rounded-xl items-center justify-center ${isMobile ? 'mb-4' : 'mb-6'}`}>
             <Ionicons name="shield-checkmark-outline" size={24} color="#16a34a" />
           </View>
           <Text style={tw`text-[#0b4771] text-3xl font-bold mb-1`}>{stats.granted}</Text>
           <Text style={tw`text-[#94a3b8] text-sm font-medium`}>Akses Diberikan</Text>
         </View>
 
-        <View style={tw`flex-1 bg-white rounded-2xl p-6 shadow-sm border border-[#e2e8f0]`}>
-          <View style={tw`w-12 h-12 bg-[#fff7ed] rounded-xl items-center justify-center mb-6`}>
+        <View style={tw`flex-1 bg-white rounded-2xl ${isMobile ? 'p-4' : 'p-6'} shadow-sm border border-[#e2e8f0]`}>
+          <View style={tw`w-12 h-12 bg-[#fff7ed] rounded-xl items-center justify-center ${isMobile ? 'mb-4' : 'mb-6'}`}>
             <Ionicons name="hourglass-outline" size={24} color="#d97706" />
           </View>
           <Text style={tw`text-[#0b4771] text-3xl font-bold mb-1`}>{stats.pending}</Text>
           <Text style={tw`text-[#94a3b8] text-sm font-medium`}>Menunggu Izin</Text>
         </View>
 
-        <View style={tw`flex-1 bg-white rounded-2xl p-6 shadow-sm border border-[#e2e8f0]`}>
-          <View style={tw`w-12 h-12 bg-[#fef2f2] rounded-xl items-center justify-center mb-6`}>
+        <View style={tw`flex-1 bg-white rounded-2xl ${isMobile ? 'p-4' : 'p-6'} shadow-sm border border-[#e2e8f0]`}>
+          <View style={tw`w-12 h-12 bg-[#fef2f2] rounded-xl items-center justify-center ${isMobile ? 'mb-4' : 'mb-6'}`}>
             <Ionicons name="close-circle-outline" size={24} color="#dc2626" />
           </View>
           <Text style={tw`text-[#0b4771] text-3xl font-bold mb-1`}>{stats.denied}</Text>
@@ -161,8 +167,13 @@ export default function RekamMedisList() {
         </View>
       </View>
 
-      <View style={tw`bg-white rounded-2xl p-3 flex-row items-center mb-8 shadow-sm border border-[#e2e8f0]`}>
-        <View style={tw`flex-row gap-2`}>
+      <View style={[tw`bg-white rounded-2xl p-3 mb-8 shadow-sm border border-[#e2e8f0]`, isMobile ? tw`gap-3` : tw`flex-row items-center`]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={isMobile ? tw`w-full` : undefined}
+          contentContainerStyle={tw`flex-row gap-2`}
+        >
           {['Semua', 'Pemeriksaan', 'Laboratorium', 'Resep'].map(type => (
             <TouchableOpacity 
               key={type}
@@ -172,9 +183,9 @@ export default function RekamMedisList() {
               <Text style={[tw`font-medium`, filterType === type ? tw`text-white` : tw`text-[#64748b]`]}>{type}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
 
-        <View style={tw`flex-1 flex-row items-center border border-[#e2e8f0] rounded-xl px-4 h-12 ml-4`}>
+        <View style={[tw`flex-row items-center border border-[#e2e8f0] rounded-xl px-4 h-12`, isMobile ? tw`w-full` : tw`flex-1 ml-4`]}>
           <Ionicons name="search-outline" size={20} color="#94a3b8" />
           <TextInput 
             style={tw`flex-1 ml-3 text-[#0b4771] h-full outline-none`}
@@ -201,25 +212,25 @@ export default function RekamMedisList() {
             const isAllowed = record.status === 'Akses Diberikan';
 
             return (
-              <View key={record.id} style={tw`bg-white rounded-2xl p-5 flex-row items-center shadow-sm border border-[#e2e8f0]`}>
+              <View key={record.id} style={[tw`bg-white rounded-2xl p-5 shadow-sm border border-[#e2e8f0]`, isTablet || isMobile ? tw`gap-4` : tw`flex-row items-center`]}>
                 
-                <View style={tw`w-14 h-14 bg-[#e0f2f1] rounded-xl items-center justify-center mr-5`}>
+                <View style={tw`w-14 h-14 bg-[#e0f2f1] rounded-xl items-center justify-center ${isTablet || isMobile ? 'mb-0' : 'mr-5'}`}>
                    <Ionicons name="document-text-outline" size={24} color="#1ba39a" />
                 </View>
 
                 <View style={tw`flex-1`}>
-                  <View style={tw`flex-row items-center mb-1`}>
-                    <Text style={tw`text-[#0b4771] text-lg font-semibold mr-3`}>{record.patient_name}</Text>
+                  <View style={[tw`mb-1`, isMobile ? tw`gap-1` : tw`flex-row items-center`]}>
+                    <Text style={tw`text-[#0b4771] text-lg font-semibold ${isMobile ? '' : 'mr-3'}`}>{record.patient_name}</Text>
                     <Text style={tw`text-[#94a3b8]`}>{record.record_id}</Text>
                   </View>
                   <Text style={tw`text-[#64748b] text-sm mb-2`}>{record.desc}</Text>
-                  <View style={tw`flex-row items-center`}>
+                  <View style={tw`flex-row items-center flex-wrap`}>
                     <Ionicons name="checkmark-circle-outline" size={16} color="#16a34a" />
                     <Text style={tw`text-[#16a34a] text-xs ml-1 font-medium`}>{record.hash}</Text>
                   </View>
                 </View>
 
-                <View style={tw`flex-row items-center gap-4`}>
+                <View style={[tw`gap-4`, isMobile ? tw`items-stretch` : tw`flex-row items-center`]}>
                   <View style={[tw`px-4 py-2 rounded-xl flex-row items-center`, tw`${statusStyle.bg}`]}>
                      <Ionicons name={statusStyle.icon} size={16} color={tw.color(statusStyle.text.split('-')[1]) || '#000'} />
                      <Text style={[tw`ml-2 font-medium text-sm`, tw`${statusStyle.text}`]}>{record.status}</Text>
@@ -227,7 +238,7 @@ export default function RekamMedisList() {
 
                   {isAllowed && (
                     <TouchableOpacity 
-                      style={tw`bg-[#f8fafc] border border-[#e2e8f0] px-6 py-2 rounded-xl flex-row items-center`}
+                      style={[tw`bg-[#f8fafc] border border-[#e2e8f0] px-6 py-2 rounded-xl flex-row items-center justify-center`, isMobile ? tw`w-full` : null]}
                       onPress={() => router.push(`/(staff)/rekam-medis/${record.id}`)}
                     >
                       <Ionicons name="eye-outline" size={18} color="#0b4771" />
