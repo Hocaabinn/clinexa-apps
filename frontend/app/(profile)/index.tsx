@@ -21,7 +21,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Buffer } from 'buffer';
 import * as bip39 from 'bip39';
 import * as ImagePicker from 'expo-image-picker';
-import { supabase } from '../../lib/supabase';
+import { callPatientAccess } from '../../lib/patient-api';
 import { patientDataCache, useAuth } from '../../constants/auth';
 
 global.Buffer = global.Buffer || Buffer;
@@ -165,23 +165,21 @@ export default function ProfileScreen() {
 
         const nik = await SecureStore.getItemAsync('user_nik');
         if (nik) {
-          const { data, error } = await supabase
-            .from('patients')
-            .select('id, name, gender, birth_date, blood_type')
-            .eq('nik', nik)
-            .single();
+          const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
+          const data = await callPatientAccess<FullPatientData>('get_patient', {
+            nik,
+            wallet_address: walletAddress,
+          });
 
-          if (data && !error) {
-            const fullData: FullPatientData = {
-              id: data.id,
-              name: data.name,
-              gender: data.gender,
-              birth_date: data.birth_date,
-              blood_type: data.blood_type,
-            };
-            setPatientData(fullData);
-            patientDataCache.set(fullData);
-          }
+          const fullData: FullPatientData = {
+            id: data.id,
+            name: data.name,
+            gender: data.gender,
+            birth_date: data.birth_date,
+            blood_type: data.blood_type,
+          };
+          setPatientData(fullData);
+          patientDataCache.set(fullData);
         }
       } catch (err) {
         console.error('Error loading patient profile data:', err);
@@ -233,21 +231,15 @@ export default function ProfileScreen() {
         else if (upper.includes('O')) cleanBloodType = 'O';
       }
 
-      const { error } = await supabase
-        .from('patients')
-        .update({
-          name: editName.trim(),
-          gender: editGender,
-          birth_date: formattedBirthDate,
-          blood_type: cleanBloodType,
-        })
-        .eq('id', patientData.id);
-
-      if (error) {
-        console.error('Error updating patient profile:', error);
-        Alert.alert('Gagal', 'Terjadi kesalahan saat memperbarui profil: ' + error.message);
-        return;
-      }
+      const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
+      await callPatientAccess('update_patient', {
+        patient_id: patientData.id,
+        wallet_address: walletAddress,
+        name: editName.trim(),
+        gender: editGender,
+        birth_date: formattedBirthDate,
+        blood_type: cleanBloodType,
+      });
 
       const updatedData: FullPatientData = {
         ...patientData,

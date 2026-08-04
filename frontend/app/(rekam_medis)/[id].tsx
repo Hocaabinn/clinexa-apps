@@ -8,7 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as SecureStore from 'expo-secure-store';
-import { supabase } from '../../lib/supabase';
+import { callPatientAccess } from '../../lib/patient-api';
 import { patientDataCache } from '../../constants/auth';
 
 interface MedicalRecord {
@@ -70,32 +70,59 @@ const mockRecords: Record<string, MedicalRecord> = {
 export default function RecordDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const record = id ? mockRecords[id] : null;
+  const [record, setRecord] = useState<MedicalRecord | null>(id ? mockRecords[id] ?? null : null);
   const [patientName, setPatientName] = useState<string>('Memuat...');
+  const [loadingRecord, setLoadingRecord] = useState(Boolean(id && !mockRecords[id]));
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
 
   useEffect(() => {
-    const loadPatientName = async () => {
+    const formatRecord = (doc: any): MedicalRecord => {
+      const type: MedicalRecord['type'] =
+        doc.record_type === 'laboratorium' ? 'Lab' :
+        doc.record_type === 'resep' ? 'Resep' : 'Pemeriksaan';
+
+      return {
+        id: String(doc.id),
+        title: doc.title || doc.diagnosis || (type === 'Lab' ? `Tes ${doc.lab_type || 'Laboratorium'}` : type === 'Resep' ? 'Resep Obat' : 'Pemeriksaan Medis'),
+        date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Terbaru',
+        relativeDate: 'Terbaru',
+        description: doc.notes || doc.lab_notes || doc.prescription_notes || doc.therapy || doc.chief_complaint || 'Hasil pemeriksaan dan catatan medis pasien.',
+        hash: doc.blockchain_hash || doc.hash || doc.tx_hash || '0x0000000000...0000',
+        type,
+        imageUrl: doc.image_url || 'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?w=600&auto=format&fit=crop&q=80',
+        doctorName: doc.doctor_name || doc.doctor || 'Dokter Clinexa',
+        disease: doc.diagnosis || '-',
+        detailTime: doc.created_at ? new Date(doc.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : undefined,
+      };
+    };
+
+    const loadPatientRecord = async () => {
       try {
         const cached = patientDataCache.get();
         if (cached && cached.name) {
           setPatientName(cached.name);
-          return;
         }
 
         const nik = await SecureStore.getItemAsync('user_nik');
         if (nik) {
-          const { data, error } = await supabase
-            .from('patients')
-            .select('name')
-            .eq('nik', nik)
-            .single();
+          const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
 
-          if (data && !error) {
+          if (id && !mockRecords[id]) {
+            const data = await callPatientAccess<{ patient: { id: string; name: string }; record: any }>('get_record', {
+              nik,
+              wallet_address: walletAddress,
+              record_id: id,
+            });
+            setPatientName(data.patient.name);
+            patientDataCache.set(data.patient);
+            setRecord(formatRecord(data.record));
+          } else if (!cached?.name) {
+            const data = await callPatientAccess<{ id: string; name: string }>('get_patient', {
+              nik,
+              wallet_address: walletAddress,
+            });
             setPatientName(data.name);
-            patientDataCache.set({ id: cached?.id || '', name: data.name });
-          } else {
-            setPatientName('Pasien Clinexa');
+            patientDataCache.set(data);
           }
         } else {
           setPatientName('Pasien Clinexa');
@@ -103,10 +130,12 @@ export default function RecordDetailScreen() {
       } catch (err) {
         console.error('Failed to load patient name:', err);
         setPatientName('Pasien Clinexa');
+      } finally {
+        setLoadingRecord(false);
       }
     };
-    loadPatientName();
-  }, []);
+    loadPatientRecord();
+  }, [id]);
 
   const copyToClipboard = async (text: string) => {
     await Clipboard.setStringAsync(text);
@@ -304,6 +333,15 @@ export default function RecordDetailScreen() {
       setIsPdfGenerating(false);
     }
   };
+
+  if (loadingRecord) {
+    return (
+      <SafeAreaView style={tw`flex-1 bg-white items-center justify-center`}>
+        <ActivityIndicator size="large" color="#1ba098" />
+        <Text style={tw`text-gray-500 font-bold text-base mt-4`}>Memuat rekam medis...</Text>
+      </SafeAreaView>
+    );
+  }
 
   if (!record) {
     return (

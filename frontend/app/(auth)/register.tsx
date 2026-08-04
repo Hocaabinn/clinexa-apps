@@ -16,10 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex } from '@noble/hashes/utils';
-import { Buffer } from 'buffer';
-import { supabase } from '../../lib/supabase';
+import { callPatientAccess } from '../../lib/patient-api';
 
 const { width } = Dimensions.get('window');
 
@@ -86,21 +83,12 @@ export default function RegisterScreen() {
 
         setIsSubmitting(true);
         try {
-            // 1. Cek apakah NIK sudah terdaftar di Supabase
-            const { data: existingPatient, error: fetchError } = await supabase
-                .from('patients')
-                .select('id')
-                .eq('nik', nik.trim())
-                .single();
+            const existingPatient = await callPatientAccess<{ exists: boolean }>('check_nik', { nik: nik.trim() });
 
-            if (existingPatient) {
+            if (existingPatient.exists) {
                 alert('Pendaftaran Gagal: NIK ini sudah terdaftar sebelumnya.');
                 setIsSubmitting(false);
                 return;
-            }
-            if (fetchError && fetchError.code !== 'PGRST116') {
-                // PGRST116 is "No rows found", which is good. Anything else is an actual error.
-                console.error('Error mengecek NIK:', fetchError);
             }
 
             // 2. Map gender: Laki-laki -> L, Perempuan -> P

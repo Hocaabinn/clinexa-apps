@@ -15,7 +15,7 @@ import 'react-native-get-random-values';
 import { Buffer } from 'buffer';
 import * as bip39 from 'bip39';
 
-import { supabase } from '../../lib/supabase';
+import { callPatientAccess } from '../../lib/patient-api';
 import { authState } from '../../constants/auth';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
@@ -129,29 +129,14 @@ export default function SeedPhraseScreen() {
                 else if (upper.includes('O')) cleanBloodType = 'O';
             }
 
-            // 3. Insert to Supabase patients table
-            const { error } = await supabase
-                .from('patients')
-                .insert({
-                    nik: pendingData.nik,
-                    name: pendingData.name,
-                    gender: pendingData.gender,
-                    birth_date: pendingData.birth_date,
-                    blood_type: cleanBloodType,
-                    wallet_address: walletAddress
-                });
-
-            if (error) {
-                console.error('Supabase insert error:', error);
-
-                if (error.code === '23505') {
-                    // 23505 = unique_violation
-                    Alert.alert('Pendaftaran Gagal', 'Data pasien (NIK) sudah terdaftar di sistem kami.');
-                } else {
-                    Alert.alert('Error', 'Gagal mendaftarkan pasien ke server: ' + error.message);
-                }
-                return;
-            }
+            await callPatientAccess('register_patient', {
+                nik: pendingData.nik,
+                name: pendingData.name,
+                gender: pendingData.gender,
+                birth_date: pendingData.birth_date,
+                blood_type: cleanBloodType,
+                wallet_address: walletAddress,
+            });
 
             // 4. Save nik to SecureStore
             await SecureStore.setItemAsync('user_nik', pendingData.nik);

@@ -21,6 +21,7 @@ import 'react-native-get-random-values';
 import { Buffer } from 'buffer';
 import * as bip39 from 'bip39';
 import { supabase } from '../../lib/supabase';
+import { callPatientAccess } from '../../lib/patient-api';
 import { patientDataCache } from '../../constants/auth';
 
 global.Buffer = global.Buffer || Buffer;
@@ -98,14 +99,17 @@ function RekamMedisScreen() {
 
   const fetchRecords = async (patientId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('medical_documents')
-        .select('*')
-        .eq('patient_id', patientId)
-        .order('created_at', { ascending: false });
+      const nik = await SecureStore.getItemAsync('user_nik');
+      const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
+      if (!nik) return;
 
-      if (data && data.length > 0) {
-        const formatted: MedicalRecord[] = data.map((doc: any) => ({
+      const { records } = await callPatientAccess<{ records: any[] }>('list_records', {
+        nik,
+        wallet_address: walletAddress,
+      });
+
+      if (records && records.length > 0) {
+        const formatted: MedicalRecord[] = records.map((doc: any) => ({
           id: String(doc.id),
           title: doc.title || doc.diagnosis || 'Pemeriksaan Medis',
           date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : (doc.date || 'Terbaru'),
@@ -117,27 +121,7 @@ function RekamMedisScreen() {
         }));
         setMedicalRecords(formatted);
       } else {
-        const { data: recData } = await supabase
-          .from('medical_records')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('created_at', { ascending: false });
-
-        if (recData && recData.length > 0) {
-          const formatted: MedicalRecord[] = recData.map((doc: any) => ({
-            id: String(doc.id),
-            title: doc.title || doc.diagnosis || 'Pemeriksaan Medis',
-            date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : (doc.date || 'Terbaru'),
-            relativeDate: 'Terbaru',
-            description: doc.description || doc.notes || 'Hasil pemeriksaan dan catatan medis pasien.',
-            hash: doc.hash || doc.tx_hash || '0x' + Math.random().toString(16).substring(2, 18),
-            type: (doc.type === 'Lab' || doc.type === 'Resep') ? doc.type : 'Pemeriksaan',
-            imageUrl: doc.image_url || 'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?w=600&auto=format&fit=crop&q=80',
-          }));
-          setMedicalRecords(formatted);
-        } else {
-          setMedicalRecords(defaultRecords);
-        }
+        setMedicalRecords(defaultRecords);
       }
     } catch (err) {
       console.error('Error fetching medical records:', err);
@@ -149,17 +133,15 @@ function RekamMedisScreen() {
       try {
         const nik = await SecureStore.getItemAsync('user_nik');
         if (nik) {
-          const { data, error } = await supabase
-            .from('patients')
-            .select('id, name')
-            .eq('nik', nik)
-            .single();
+          const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
+          const data = await callPatientAccess<{ id: string; name: string }>('get_patient', {
+            nik,
+            wallet_address: walletAddress,
+          });
 
-          if (data && !error) {
-            setPatientData(data);
-            patientDataCache.set(data);
-            fetchRecords(data.id);
-          }
+          setPatientData(data);
+          patientDataCache.set(data);
+          fetchRecords(data.id);
         }
       } catch (err) {
         console.error('Error loading user data:', err);

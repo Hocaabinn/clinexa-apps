@@ -22,7 +22,7 @@ import * as SecureStore from 'expo-secure-store';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import { Buffer } from 'buffer';
-import { supabase } from '../../lib/supabase';
+import { callPatientAccess } from '../../lib/patient-api';
 import { authState } from '../../constants/auth';
 
 export default function LoginScreen() {
@@ -109,14 +109,9 @@ export default function LoginScreen() {
     }
     setIsSendingOtp(true);
     try {
-      // 1. Cek apakah pasien terdaftar di Supabase
-      const { data: patient, error } = await supabase
-        .from('patients')
-        .select('id')
-        .eq('nik', nik.trim())
-        .single();
+      const patient = await callPatientAccess<{ exists: boolean }>('check_nik', { nik: nik.trim() });
 
-      if (error || !patient) {
+      if (!patient.exists) {
         alert('NIK tidak ditemukan atau tidak terdaftar sebagai pasien.');
         return;
       }
@@ -171,17 +166,14 @@ export default function LoginScreen() {
     }
 
     try {
-      // 1. Cek apakah pasien terdaftar di Supabase
-      const { data: patient, error } = await supabase
-        .from('patients')
-        .select('id, name, wallet_address')
-        .eq('nik', nik.trim())
-        .single();
+      const walletAddressFromPhrase = recoveryPhrase.trim() !== ''
+        ? '0x' + bytesToHex(sha256(Buffer.from(recoveryPhrase.trim(), 'utf-8'))).substring(0, 40)
+        : undefined;
 
-      if (error || !patient) {
-        alert('Data pasien tidak ditemukan.');
-        return;
-      }
+      const patient = await callPatientAccess<{ id: string; name: string; wallet_address?: string }>('login_patient', {
+        nik: nik.trim(),
+        wallet_address: walletAddressFromPhrase,
+      });
 
       // 2. Simpan NIK ke SecureStore
       await SecureStore.setItemAsync('user_nik', nik.trim());
@@ -189,8 +181,7 @@ export default function LoginScreen() {
       // 3. Simpan seed phrase jika diisi (opsional)
       if (recoveryPhrase.trim() !== '') {
         await SecureStore.setItemAsync('user_seed_phrase', recoveryPhrase.trim());
-        const walletAddress = '0x' + bytesToHex(sha256(Buffer.from(recoveryPhrase.trim(), 'utf-8'))).substring(0, 40);
-        await SecureStore.setItemAsync('user_wallet_address', walletAddress);
+        await SecureStore.setItemAsync('user_wallet_address', walletAddressFromPhrase!);
       } else {
         // Jika tidak diisi, gunakan wallet_address dari database
         if (patient.wallet_address) {

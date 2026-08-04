@@ -9,6 +9,7 @@ import 'react-native-get-random-values';
 import { Buffer } from 'buffer';
 import * as bip39 from 'bip39';
 import { supabase } from '../../lib/supabase';
+import { callPatientAccess } from '../../lib/patient-api';
 import { patientDataCache } from '../../constants/auth';
 
 global.Buffer = global.Buffer || Buffer;
@@ -73,15 +74,17 @@ export default function DashboardIndex() {
   const fetchMedicalVisits = async (patientId: string) => {
     try {
       setLoadingVisits(true);
-      // Query medical_documents table in Supabase
-      const { data, error } = await supabase
-        .from('medical_documents')
-        .select('*')
-        .eq('patient_id', patientId)
-        .order('created_at', { ascending: false });
+      const nik = await SecureStore.getItemAsync('user_nik');
+      const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
+      if (!nik) return;
 
-      if (data && data.length > 0) {
-        const formattedVisits = data.map((doc: any) => ({
+      const { records } = await callPatientAccess<{ records: any[] }>('list_records', {
+        nik,
+        wallet_address: walletAddress,
+      });
+
+      if (records && records.length > 0) {
+        const formattedVisits = records.map((doc: any) => ({
           id: String(doc.id),
           rs: doc.hospital_name || doc.institution || doc.facility_name || doc.rs || 'RS Harapan Sehat',
           doctor: doc.doctor_name || doc.doctor || 'dr. Sarah Wijaya, Sp.PD',
@@ -90,25 +93,7 @@ export default function DashboardIndex() {
         }));
         setVisits(formattedVisits);
       } else {
-        // Fallback check medical_records table
-        const { data: recData } = await supabase
-          .from('medical_records')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('created_at', { ascending: false });
-
-        if (recData && recData.length > 0) {
-          const formattedVisits = recData.map((doc: any) => ({
-            id: String(doc.id),
-            rs: doc.hospital_name || doc.institution || doc.facility_name || doc.rs || 'RS Harapan Sehat',
-            doctor: doc.doctor_name || doc.doctor || 'dr. Sarah Wijaya, Sp.PD',
-            title: doc.title || doc.diagnosis || 'Pemeriksaan Medis',
-            date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : (doc.date || ''),
-          }));
-          setVisits(formattedVisits);
-        } else {
-          setVisits(defaultVisits);
-        }
+        setVisits(defaultVisits);
       }
     } catch (err) {
       console.error("Error fetching medical visits:", err);
@@ -123,17 +108,15 @@ export default function DashboardIndex() {
       try {
         const nik = await SecureStore.getItemAsync('user_nik');
         if (nik) {
-          const { data, error } = await supabase
-            .from('patients')
-            .select('id, name')
-            .eq('nik', nik)
-            .single();
+          const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
+          const data = await callPatientAccess<{ id: string; name: string }>('get_patient', {
+            nik,
+            wallet_address: walletAddress,
+          });
 
-          if (data && !error) {
-            setPatientData(data);
-            patientDataCache.set(data);
-            fetchMedicalVisits(data.id);
-          }
+          setPatientData(data);
+          patientDataCache.set(data);
+          fetchMedicalVisits(data.id);
         }
       } catch (err) {
         console.error("Error loading user data:", err);
