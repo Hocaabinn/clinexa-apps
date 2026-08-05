@@ -215,15 +215,18 @@ serve(async (req) => {
         .update({ consent_status: consentStatus })
         .eq('id', recordId)
         .eq('patient_id', patient.id)
-        .select('*, staff:staff_id(name, institution, specialization)')
-        .single();
+        .select('*, staff:staff_id(name, institution, specialization)');
 
       if (error) throw error;
-      return json({ record: data });
+      if (!data || data.length === 0) {
+        throw new Error('Rekam medis tidak ditemukan atau tidak cocok dengan data pasien.');
+      }
+      return json({ record: data[0] });
     }
 
     return json({ error: 'Unknown action' }, 400);
-  } catch (error) {
-    return json({ error: error instanceof Error ? error.message : 'Unexpected error' }, 400);
+  } catch (error: any) {
+    const msg = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
+    return json({ error: msg || 'Unexpected error' }, 400);
   }
 });
