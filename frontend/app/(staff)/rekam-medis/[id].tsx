@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import tw from 'twrnc';
@@ -10,10 +10,6 @@ export default function RekamMedisDetail() {
   const router = useRouter();
   const [record, setRecord] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (id) fetchRecord();
-  }, [id]);
 
   const fetchRecord = async () => {
     try {
@@ -33,6 +29,28 @@ export default function RekamMedisDetail() {
     }
   };
 
+  useEffect(() => {
+    if (!id) return;
+    fetchRecord();
+
+    // Setup realtime subscription to reload details if patient updates consent status
+    const channelName = `record-detail-${id}-${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'medical_records', filter: `id=eq.${id}` },
+        () => {
+          fetchRecord();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
+
   if (loading) {
     return (
       <View style={tw`flex-1 bg-[#f4f6f8] items-center justify-center`}>
@@ -51,6 +69,7 @@ export default function RekamMedisDetail() {
 
   const patient = record.patients || {};
   const isGranted = record.consent_status === 'approved';
+  const avatarUrl = patient.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${patient.name || 'User'}&backgroundColor=0b4771,1ba39a`;
 
   return (
     <View style={tw`flex-1 bg-[#f4f6f8]`}>
@@ -60,14 +79,14 @@ export default function RekamMedisDetail() {
           <View style={tw`flex-row items-center`}>
             <Text style={tw`text-black text-4xl font-bold mr-4`}>{patient.name || 'Unknown'}</Text>
             {isGranted ? (
-              <View style={tw`bg-[#a3e635] px-4 py-2 rounded-xl flex-row items-center`}>
-                <Ionicons name="checkmark-circle" size={16} color="#166534" />
-                <Text style={tw`text-[#166534] font-bold text-sm ml-2`}>Akses Aktif</Text>
+              <View style={tw`bg-[#e8fbf1] border border-[#22c55e]/20 px-4 py-2 rounded-xl flex-row items-center`}>
+                <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
+                <Text style={tw`text-[#16a34a] font-bold text-sm ml-2`}>Akses Aktif</Text>
               </View>
             ) : (
-              <View style={tw`bg-[#ffedd5] px-4 py-2 rounded-xl flex-row items-center`}>
-                <Ionicons name="hourglass" size={16} color="#d97706" />
-                <Text style={tw`text-[#d97706] font-bold text-sm ml-2`}>Status: {record.consent_status}</Text>
+              <View style={tw`bg-[#fdf2f2] border border-[#ef4444]/20 px-4 py-2 rounded-xl flex-row items-center`}>
+                <Ionicons name="alert-circle" size={16} color="#ef4444" />
+                <Text style={tw`text-[#ef4444] font-bold text-sm ml-2`}>Status: {record.consent_status === 'rejected' ? 'Akses Ditolak' : 'Menunggu Izin'}</Text>
               </View>
             )}
           </View>
@@ -77,12 +96,15 @@ export default function RekamMedisDetail() {
 
           <View style={tw`flex-[1] flex-col gap-6`}>
             <View style={tw`bg-white rounded-2xl p-8 shadow-sm border border-[#e2e8f0] items-center`}>
-              <View style={tw`w-28 h-28 bg-[#fca5a5] rounded-full items-center justify-center mb-6 overflow-hidden border-4 border-white shadow-sm`}>
-                <Ionicons name="person" size={60} color="white" style={tw`mt-4`} />
-              </View>
+              <Image 
+                source={{ uri: avatarUrl }} 
+                style={tw`w-28 h-28 rounded-full mb-6 border-4 border-white shadow bg-gray-50`} 
+              />
 
-              <Text style={tw`text-[#0b4771] text-2xl font-bold mb-1`}>{patient.name || 'Unknown'}</Text>
-              <Text style={tw`text-[#64748b] text-base mb-10`}>Pasien</Text>
+              <Text style={tw`text-[#0b4771] text-2xl font-bold mb-1 text-center`}>{patient.name || 'Unknown'}</Text>
+              <Text style={tw`text-[#94a3b8] text-xs font-semibold mb-6 px-4 text-center leading-relaxed`} numberOfLines={1}>
+                ID: {patient.id}
+              </Text>
 
               <View style={tw`w-full`}>
                 <View style={tw`mb-6`}>

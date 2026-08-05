@@ -106,16 +106,36 @@ export default function DashboardIndex() {
   useEffect(() => {
     const loadUserData = async () => {
       try {
+        const cached = patientDataCache.get() as any;
+        if (cached) {
+          setPatientData(cached);
+          if (cached.avatar_url) {
+            setProfileImage(cached.avatar_url);
+          } else {
+            setProfileImage(`https://api.dicebear.com/7.x/initials/png?seed=${cached.name}&backgroundColor=0b4771,1ba39a`);
+          }
+        }
+
         const nik = await SecureStore.getItemAsync('user_nik');
         if (nik) {
           const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
-          const data = await callPatientAccess<{ id: string; name: string }>('get_patient', {
+          const data = await callPatientAccess<any>('get_patient', {
             nik,
             wallet_address: walletAddress,
           });
 
           setPatientData(data);
           patientDataCache.set(data);
+          if (data.avatar_url) {
+            setProfileImage(data.avatar_url);
+            if (Platform.OS === 'web') {
+              localStorage.setItem('user_profile_image', data.avatar_url);
+            } else {
+              await SecureStore.setItemAsync('user_profile_image', data.avatar_url);
+            }
+          } else {
+            setProfileImage(`https://api.dicebear.com/7.x/initials/png?seed=${data.name}&backgroundColor=0b4771,1ba39a`);
+          }
           fetchMedicalVisits(data.id);
         }
       } catch (err) {
@@ -156,7 +176,7 @@ export default function DashboardIndex() {
     };
   }, [patientData?.id]);
 
-  const [profileImage, setProfileImage] = useState<string>('https://i.pravatar.cc/150?img=11');
+  const [profileImage, setProfileImage] = useState<string>('https://api.dicebear.com/7.x/initials/png?seed=User&backgroundColor=0b4771,1ba39a');
 
   useEffect(() => {
     const loadProfileImage = async () => {

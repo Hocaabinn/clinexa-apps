@@ -23,6 +23,7 @@ import * as bip39 from 'bip39';
 import * as ImagePicker from 'expo-image-picker';
 import { callPatientAccess } from '../../lib/patient-api';
 import { patientDataCache, useAuth } from '../../constants/auth';
+import { supabase } from '../../lib/supabase';
 
 global.Buffer = global.Buffer || Buffer;
 
@@ -47,6 +48,7 @@ interface FullPatientData {
   gender?: string;
   birth_date?: string;
   blood_type?: string;
+  avatar_url?: string;
 }
 
 export default function ProfileScreen() {
@@ -54,7 +56,7 @@ export default function ProfileScreen() {
   const { logout } = useAuth();
   const [patientData, setPatientData] = useState<FullPatientData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profileImage, setProfileImage] = useState<string>('https://i.pravatar.cc/150?img=11');
+  const [profileImage, setProfileImage] = useState<string>('https://api.dicebear.com/7.x/initials/png?seed=User&backgroundColor=0b4771,1ba39a');
 
   // State untuk Modal Edit Informasi Pribadi
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -88,6 +90,78 @@ export default function ProfileScreen() {
     loadProfileImage();
   }, []);
 
+  const uploadAvatarToSupabase = async (uri: string) => {
+    try {
+      if (!patientData?.id) return;
+      setIsSaving(true);
+
+      let blob: Blob;
+      let contentType = 'image/jpeg';
+      let fileExtension = 'jpg';
+
+      if (Platform.OS === 'web') {
+        const response = await fetch(uri);
+        blob = await response.blob();
+        const mime = uri.split(',')[0].split(':')[1].split(';')[0];
+        contentType = mime;
+        fileExtension = mime.split('/')[1] || 'jpg';
+      } else {
+        const response = await fetch(uri);
+        blob = await response.blob();
+        const ext = uri.split('.').pop() || 'jpg';
+        fileExtension = ext;
+        contentType = `image/${ext}`;
+      }
+
+      const filePath = `${patientData.id}.${fileExtension}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, blob, {
+          contentType,
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get Public URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const publicUrl = urlData.publicUrl;
+
+      // Update patients table
+      const { error: updateError } = await supabase
+        .from('patients')
+        .update({ avatar_url: publicUrl })
+        .eq('id', patientData.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state and cache
+      setProfileImage(publicUrl);
+      if (Platform.OS === 'web') {
+        localStorage.setItem('user_profile_image', publicUrl);
+      } else {
+        await SecureStore.setItemAsync('user_profile_image', publicUrl);
+      }
+
+      // Update patientData cache so other screens refresh
+      const updatedData = { ...patientData, avatar_url: publicUrl };
+      setPatientData(updatedData);
+      patientDataCache.set(updatedData);
+
+      Alert.alert('Berhasil', 'Foto profil berhasil diperbarui.');
+    } catch (err: any) {
+      console.error('Error uploading avatar:', err);
+      Alert.alert('Error', 'Gagal mengunggah foto profil: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handlePickImage = async () => {
     try {
       if (Platform.OS === 'web') {
@@ -101,10 +175,7 @@ export default function ProfileScreen() {
             reader.onload = (event) => {
               const result = event.target?.result as string;
               if (result) {
-                setProfileImage(result);
-                if (typeof window !== 'undefined') {
-                  localStorage.setItem('user_profile_image', result);
-                }
+                uploadAvatarToSupabase(result);
               }
             };
             reader.readAsDataURL(file);
@@ -129,8 +200,7 @@ export default function ProfileScreen() {
 
       if (!result.canceled && result.assets && result.assets[0].uri) {
         const imageUri = result.assets[0].uri;
-        setProfileImage(imageUri);
-        await SecureStore.setItemAsync('user_profile_image', imageUri);
+        await uploadAvatarToSupabase(imageUri);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -159,6 +229,11 @@ export default function ProfileScreen() {
         const cached = patientDataCache.get() as FullPatientData | null;
         if (cached && cached.gender && cached.birth_date && cached.blood_type) {
           setPatientData(cached);
+          if (cached.avatar_url) {
+            setProfileImage(cached.avatar_url);
+          } else {
+            setProfileImage(`https://api.dicebear.com/7.x/initials/png?seed=${cached.name}&backgroundColor=0b4771,1ba39a`);
+          }
           setLoading(false);
           return;
         }
@@ -166,7 +241,7 @@ export default function ProfileScreen() {
         const nik = await SecureStore.getItemAsync('user_nik');
         if (nik) {
           const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
-          const data = await callPatientAccess<FullPatientData>('get_patient', {
+          const data = await callPatientAccess<any>('get_patient', {
             nik,
             wallet_address: walletAddress,
           });
@@ -177,9 +252,15 @@ export default function ProfileScreen() {
             gender: data.gender,
             birth_date: data.birth_date,
             blood_type: data.blood_type,
+            avatar_url: data.avatar_url,
           };
           setPatientData(fullData);
           patientDataCache.set(fullData);
+          if (data.avatar_url) {
+            setProfileImage(data.avatar_url);
+          } else {
+            setProfileImage(`https://api.dicebear.com/7.x/initials/png?seed=${data.name}&backgroundColor=0b4771,1ba39a`);
+          }
         }
       } catch (err) {
         console.error('Error loading patient profile data:', err);
