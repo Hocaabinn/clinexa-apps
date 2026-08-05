@@ -4,6 +4,8 @@
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
   },
+  "deno.enable": true,
+  "deno.unstable": true,
   "deno.enablePaths": [
     "backend/supabase/functions"
   ]
