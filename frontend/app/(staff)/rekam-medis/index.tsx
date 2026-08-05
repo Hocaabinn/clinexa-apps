@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Platform, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import tw from 'twrnc';
@@ -48,6 +48,24 @@ export default function RekamMedisList() {
     };
   }, []);
 
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchRecords();
+      }
+    };
+
+    window.addEventListener('focus', fetchRecords);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      window.removeEventListener('focus', fetchRecords);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, []);
+
   const fetchRecords = async () => {
     setLoading(true);
     try {
@@ -93,8 +111,8 @@ export default function RekamMedisList() {
           else if (item.consent_status === 'denied') deniedCount++;
 
           const statusMap: Record<string, string> = {
-            granted: 'Akses Diberikan',
-            denied: 'Akses Ditolak',
+            granted: 'Diterima',
+            denied: 'Ditolak',
             pending: 'Menunggu Izin'
           };
 
@@ -122,8 +140,8 @@ export default function RekamMedisList() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Akses Diberikan': return { bg: 'bg-[#dcfce7]', text: 'text-[#16a34a]', icon: 'checkmark-circle-outline' as any };
-      case 'Akses Ditolak': return { bg: 'bg-[#fee2e2]', text: 'text-[#dc2626]', icon: 'close-circle-outline' as any };
+      case 'Diterima': return { bg: 'bg-[#dcfce7]', text: 'text-[#16a34a]', icon: 'checkmark-circle-outline' as any };
+      case 'Ditolak': return { bg: 'bg-[#fee2e2]', text: 'text-[#dc2626]', icon: 'close-circle-outline' as any };
       case 'Menunggu Izin': return { bg: 'bg-[#ffedd5]', text: 'text-[#d97706]', icon: 'hourglass-outline' as any };
       default: return { bg: 'bg-gray-100', text: 'text-gray-500', icon: 'ellipse-outline' as any };
     }
@@ -149,13 +167,22 @@ export default function RekamMedisList() {
       <View style={[tw`mb-10`, isMobile ? tw`items-stretch gap-4` : tw`flex-row justify-between items-center`]}>
         <Text style={tw`text-[#0b4771] ${isMobile ? 'text-2xl' : 'text-3xl'} font-semibold`}>Rekam Medis</Text>
         
-        <TouchableOpacity 
-          style={[tw`bg-[#1ba39a] px-6 py-3.5 rounded-xl flex-row items-center justify-center`, isMobile ? tw`w-full` : null]}
-          onPress={() => router.push('/(staff)/rekam-medis/tambah')}
-        >
-          <Ionicons name="add-circle-outline" size={20} color="white" />
-          <Text style={tw`text-white font-medium ml-2 text-base`}>Tambahkan Rekam Medis</Text>
-        </TouchableOpacity>
+        <View style={[tw`flex-row gap-3`, isMobile ? tw`w-full` : null]}>
+          <TouchableOpacity
+            style={tw`bg-white border border-[#e2e8f0] px-4 py-3.5 rounded-xl flex-row items-center justify-center`}
+            onPress={fetchRecords}
+          >
+            <Ionicons name="refresh-outline" size={20} color="#0b4771" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[tw`bg-[#1ba39a] px-6 py-3.5 rounded-xl flex-row items-center justify-center`, isMobile ? tw`flex-1` : null]}
+            onPress={() => router.push('/(staff)/rekam-medis/tambah')}
+          >
+            <Ionicons name="add-circle-outline" size={20} color="white" />
+            <Text style={tw`text-white font-medium ml-2 text-base`}>Tambahkan Rekam Medis</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={[tw`mb-8`, isMobile ? tw`gap-4` : tw`flex-row gap-6`]}>
@@ -164,7 +191,7 @@ export default function RekamMedisList() {
             <Ionicons name="shield-checkmark-outline" size={24} color="#16a34a" />
           </View>
           <Text style={tw`text-[#0b4771] text-3xl font-bold mb-1`}>{stats.granted}</Text>
-          <Text style={tw`text-[#94a3b8] text-sm font-medium`}>Akses Diberikan</Text>
+          <Text style={tw`text-[#94a3b8] text-sm font-medium`}>Diterima</Text>
         </View>
 
         <View style={tw`flex-1 bg-white rounded-2xl ${isMobile ? 'p-4' : 'p-6'} shadow-sm border border-[#e2e8f0]`}>
@@ -180,7 +207,7 @@ export default function RekamMedisList() {
             <Ionicons name="close-circle-outline" size={24} color="#dc2626" />
           </View>
           <Text style={tw`text-[#0b4771] text-3xl font-bold mb-1`}>{stats.denied}</Text>
-          <Text style={tw`text-[#94a3b8] text-sm font-medium`}>Akses Ditolak</Text>
+          <Text style={tw`text-[#94a3b8] text-sm font-medium`}>Ditolak</Text>
         </View>
       </View>
 
@@ -226,7 +253,7 @@ export default function RekamMedisList() {
         <View style={tw`flex-col gap-4`}>
           {filteredRecords.map((record) => {
             const statusStyle = getStatusColor(record.status);
-            const isAllowed = record.status === 'Akses Diberikan';
+            const isAllowed = record.status === 'Diterima';
 
             return (
               <View key={record.id} style={[tw`bg-white rounded-2xl p-5 shadow-sm border border-[#e2e8f0]`, isTablet || isMobile ? tw`gap-4` : tw`flex-row items-center`]}>
