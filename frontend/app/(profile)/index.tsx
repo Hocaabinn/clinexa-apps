@@ -90,14 +90,14 @@ export default function ProfileScreen() {
     loadProfileImage();
   }, []);
 
-  const uploadAvatarToSupabase = async (uri: string) => {
+  const uploadAvatarToSupabase = async (uri: string, customMimeType?: string) => {
     try {
       if (!patientData?.id) return;
       setIsSaving(true);
 
       let blob: Blob;
-      let contentType = 'image/jpeg';
-      let fileExtension = 'jpg';
+      let contentType = customMimeType || 'image/jpeg';
+      let fileExtension = contentType.split('/')[1] || 'jpg';
 
       if (Platform.OS === 'web') {
         const response = await fetch(uri);
@@ -106,11 +106,19 @@ export default function ProfileScreen() {
         contentType = mime;
         fileExtension = mime.split('/')[1] || 'jpg';
       } else {
-        const response = await fetch(uri);
-        blob = await response.blob();
-        const ext = uri.split('.').pop() || 'jpg';
-        fileExtension = ext;
-        contentType = `image/${ext}`;
+        // Use XMLHttpRequest for native file URIs (Expo/RN) to support local filesystem URIs
+        blob = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.onload = function () {
+            resolve(xhr.response);
+          };
+          xhr.onerror = function (e) {
+            reject(new Error('Gagal membaca file gambar lokal.'));
+          };
+          xhr.responseType = 'blob';
+          xhr.open('GET', uri, true);
+          xhr.send(null);
+        });
       }
 
       const filePath = `${patientData.id}.${fileExtension}`;
@@ -200,7 +208,8 @@ export default function ProfileScreen() {
 
       if (!result.canceled && result.assets && result.assets[0].uri) {
         const imageUri = result.assets[0].uri;
-        await uploadAvatarToSupabase(imageUri);
+        const mimeType = result.assets[0].mimeType || 'image/jpeg';
+        await uploadAvatarToSupabase(imageUri, mimeType);
       }
     } catch (error) {
       console.error('Error picking image:', error);
