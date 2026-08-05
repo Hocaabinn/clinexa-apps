@@ -154,9 +154,17 @@ export default function DashboardIndex() {
   useEffect(() => {
     if (!patientData?.id) return;
 
-    const channelName = `patient-records-${patientData.id}-${Date.now()}`;
-    const channel = supabase
-      .channel(channelName)
+    const channelName = `patient-records-${patientData.id}`;
+    
+    // Safety check to remove any channel with the same name if it exists in Supabase client cache
+    const existing = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
+    if (existing) {
+      supabase.removeChannel(existing);
+    }
+
+    const channel = supabase.channel(channelName);
+
+    channel
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'medical_documents', filter: `patient_id=eq.${patientData.id}` },
@@ -170,8 +178,9 @@ export default function DashboardIndex() {
         () => {
           fetchMedicalVisits(patientData.id);
         }
-      )
-      .subscribe();
+      );
+
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
