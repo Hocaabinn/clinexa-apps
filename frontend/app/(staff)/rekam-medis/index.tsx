@@ -29,6 +29,23 @@ export default function RekamMedisList() {
 
   useEffect(() => {
     fetchRecords();
+
+    // Setup realtime subscription to listen for consent status updates
+    const channelName = `medical-records-staff-${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'medical_records' },
+        () => {
+          fetchRecords();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchRecords = async () => {

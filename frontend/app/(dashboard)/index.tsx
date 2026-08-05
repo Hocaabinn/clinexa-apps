@@ -86,9 +86,9 @@ export default function DashboardIndex() {
       if (records && records.length > 0) {
         const formattedVisits = records.map((doc: any) => ({
           id: String(doc.id),
-          rs: doc.hospital_name || doc.institution || doc.facility_name || doc.rs || 'RS Harapan Sehat',
-          doctor: doc.doctor_name || doc.doctor || 'dr. Sarah Wijaya, Sp.PD',
-          title: doc.title || doc.diagnosis || 'Pemeriksaan Medis',
+          rs: doc.staff?.institution || 'Fasilitas Kesehatan',
+          doctor: doc.staff?.name || 'Dokter',
+          title: doc.diagnosis || doc.chief_complaint || doc.lab_type || 'Pemeriksaan Medis',
           date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : (doc.date || ''),
         }));
         setVisits(formattedVisits);

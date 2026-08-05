@@ -109,16 +109,23 @@ function RekamMedisScreen() {
       });
 
       if (records && records.length > 0) {
-        const formatted: MedicalRecord[] = records.map((doc: any) => ({
-          id: String(doc.id),
-          title: doc.title || doc.diagnosis || 'Pemeriksaan Medis',
-          date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : (doc.date || 'Terbaru'),
-          relativeDate: 'Terbaru',
-          description: doc.description || doc.notes || 'Hasil pemeriksaan dan catatan medis pasien.',
-          hash: doc.hash || doc.tx_hash || '0x' + Math.random().toString(16).substring(2, 18),
-          type: (doc.type === 'Lab' || doc.type === 'Resep') ? doc.type : 'Pemeriksaan',
-          imageUrl: doc.image_url || 'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?w=600&auto=format&fit=crop&q=80',
-        }));
+        const formatted: MedicalRecord[] = records.map((doc: any) => {
+          const typeMap: Record<string, 'Pemeriksaan' | 'Lab' | 'Resep'> = {
+            pemeriksaan: 'Pemeriksaan',
+            laboratorium: 'Lab',
+            resep: 'Resep',
+          };
+          return {
+            id: String(doc.id),
+            title: doc.diagnosis || doc.chief_complaint || doc.lab_type || 'Pemeriksaan Medis',
+            date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Terbaru',
+            relativeDate: 'Terbaru',
+            description: doc.notes || doc.lab_notes || doc.prescription_notes || 'Hasil pemeriksaan dan catatan medis pasien.',
+            hash: doc.blockchain_hash || '0x' + doc.id.replace(/-/g, '').substring(0, 20),
+            type: typeMap[doc.record_type] || 'Pemeriksaan',
+            imageUrl: 'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?w=600&auto=format&fit=crop&q=80',
+          };
+        });
         setMedicalRecords(formatted);
       } else {
         setMedicalRecords(defaultRecords);

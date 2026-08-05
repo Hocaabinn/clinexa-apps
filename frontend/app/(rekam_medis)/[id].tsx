@@ -21,8 +21,23 @@ interface MedicalRecord {
   type: 'Pemeriksaan' | 'Lab' | 'Resep';
   imageUrl: string;
   doctorName?: string;
+  hospitalName?: string;
   disease?: string;
   detailTime?: string;
+  bloodPressure?: string;
+  heartRate?: string;
+  temperature?: string;
+  oxygenSaturation?: string;
+  weight?: string;
+  height?: string;
+  therapy?: string;
+  chiefComplaint?: string;
+  notes?: string;
+  labType?: string;
+  labDate?: string;
+  labNotes?: string;
+  prescriptions?: any[];
+  prescriptionNotes?: string;
 }
 
 const mockRecords: Record<string, MedicalRecord> = {
@@ -35,7 +50,8 @@ const mockRecords: Record<string, MedicalRecord> = {
     hash: '0x8a2f9cff7s871h1901a89b9101d1c92',
     type: 'Pemeriksaan',
     imageUrl: 'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?w=600&auto=format&fit=crop&q=80',
-    doctorName: 'dr. Sarah Wijaya, Sp.PD',
+    doctorName: 'Dr. Agung Setya',
+    hospitalName: 'RS Semen Gresik',
     disease: 'Hipertensi Esensial (Darah Tinggi)',
     detailTime: '10:30 WIB',
   },
@@ -48,7 +64,8 @@ const mockRecords: Record<string, MedicalRecord> = {
     hash: '0x8a2f9cff7s871h1901a89b9101d1c92',
     type: 'Lab',
     imageUrl: 'https://images.unsplash.com/photo-1576086213369-97a306d36557?w=600&auto=format&fit=crop&q=80',
-    doctorName: 'dr. Sarah Wijaya, Sp.PD',
+    doctorName: 'Dr. Agung Setya',
+    hospitalName: 'RS Semen Gresik',
     disease: 'Dislipidemia & Pemantauan Diabetes',
     detailTime: '08:15 WIB',
   },
@@ -61,7 +78,8 @@ const mockRecords: Record<string, MedicalRecord> = {
     hash: '0x8a2f9cff7s871h1901a89b9101d1c92',
     type: 'Resep',
     imageUrl: 'https://images.unsplash.com/photo-1585435557343-3b092031a831?w=600&auto=format&fit=crop&q=80',
-    doctorName: 'dr. Sarah Wijaya, Sp.PD',
+    doctorName: 'Dr. Agung Setya',
+    hospitalName: 'RS Semen Gresik',
     disease: 'Hipertensi Esensial (Darah Tinggi)',
     detailTime: '10:45 WIB',
   },
@@ -90,9 +108,24 @@ export default function RecordDetailScreen() {
         hash: doc.blockchain_hash || doc.hash || doc.tx_hash || '0x0000000000...0000',
         type,
         imageUrl: doc.image_url || 'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?w=600&auto=format&fit=crop&q=80',
-        doctorName: doc.doctor_name || doc.doctor || 'Dokter Clinexa',
+        doctorName: doc.staff?.name || doc.doctor_name || doc.doctor || 'Dr. Agung Setya',
+        hospitalName: doc.staff?.institution || doc.hospital_name || 'RS Semen Gresik',
         disease: doc.diagnosis || '-',
         detailTime: doc.created_at ? new Date(doc.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : undefined,
+        bloodPressure: doc.blood_pressure,
+        heartRate: doc.heart_rate,
+        temperature: doc.temperature,
+        oxygenSaturation: doc.oxygen_saturation,
+        weight: doc.weight,
+        height: doc.height,
+        therapy: doc.therapy,
+        chiefComplaint: doc.chief_complaint,
+        notes: doc.notes,
+        labType: doc.lab_type,
+        labDate: doc.lab_date,
+        labNotes: doc.lab_notes,
+        prescriptions: doc.prescriptions,
+        prescriptionNotes: doc.prescription_notes,
       };
     };
 
@@ -431,6 +464,38 @@ export default function RecordDetailScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Hospital & Doctor Info */}
+        <View style={[
+          tw`bg-white rounded-3xl p-6 border border-slate-100 mb-6`,
+          {
+            elevation: 3,
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.02,
+            shadowRadius: 8,
+          }
+        ]}>
+          <Text style={tw`text-slate-800 font-extrabold text-base mb-4 tracking-tight`}>Fasilitas Kesehatan & Dokter</Text>
+          <View style={tw`flex-row items-center mb-4`}>
+            <View style={tw`w-10 h-10 rounded-xl bg-slate-100 items-center justify-center mr-3`}>
+              <Ionicons name="business" size={20} color="#1ba098" />
+            </View>
+            <View>
+              <Text style={tw`text-slate-400 text-xs font-semibold`}>TEMPAT PEMERIKSAAN</Text>
+              <Text style={tw`text-slate-800 font-bold text-sm`}>{record.hospitalName}</Text>
+            </View>
+          </View>
+          <View style={tw`flex-row items-center`}>
+            <View style={tw`w-10 h-10 rounded-xl bg-slate-100 items-center justify-center mr-3`}>
+              <Ionicons name="person" size={20} color="#1ba098" />
+            </View>
+            <View>
+              <Text style={tw`text-slate-400 text-xs font-semibold`}>DOKTER PEMERIKSA</Text>
+              <Text style={tw`text-slate-800 font-bold text-sm`}>{record.doctorName}</Text>
+            </View>
+          </View>
+        </View>
+
         {/* Diagnosis / Recommendation Section */}
         <View style={[
           tw`bg-white rounded-3xl p-6 border border-slate-100 mb-6`,
@@ -442,12 +507,127 @@ export default function RecordDetailScreen() {
             shadowRadius: 8,
           }
         ]}>
-          <Text style={tw`text-slate-800 font-extrabold text-base mb-4 tracking-tight`}>Hasil & Rekomendasi Medis</Text>
-          <View style={tw`bg-slate-50/50 rounded-2xl p-4 border border-slate-100/50`}>
-            <Text style={tw`text-slate-600 text-sm leading-relaxed font-medium`}>
-              {record.description}
-            </Text>
-          </View>
+          <Text style={tw`text-slate-800 font-extrabold text-base mb-4 tracking-tight`}>Detail Rekam Medis</Text>
+          
+          {record.type === 'Pemeriksaan' && (
+            <View style={tw`gap-4`}>
+              {record.chiefComplaint ? (
+                <View>
+                  <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>KELUHAN UTAMA</Text>
+                  <Text style={tw`text-[#475569] text-sm`}>{record.chiefComplaint}</Text>
+                </View>
+              ) : null}
+              {record.disease ? (
+                <View>
+                  <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>DIAGNOSIS</Text>
+                  <Text style={tw`text-[#475569] text-sm`}>{record.disease}</Text>
+                </View>
+              ) : null}
+              {record.therapy ? (
+                <View>
+                  <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>TERAPI / TINDAKAN</Text>
+                  <Text style={tw`text-[#475569] text-sm`}>{record.therapy}</Text>
+                </View>
+              ) : null}
+              
+              <View style={tw`flex-row flex-wrap border-t border-slate-100 pt-4 mt-2`}>
+                {record.bloodPressure ? (
+                  <View style={tw`w-1/3 mb-4`}>
+                    <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>TENSI</Text>
+                    <Text style={tw`text-[#0b4771] font-bold`}>{record.bloodPressure} mmHg</Text>
+                  </View>
+                ) : null}
+                {record.heartRate ? (
+                  <View style={tw`w-1/3 mb-4`}>
+                    <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>NADI</Text>
+                    <Text style={tw`text-[#0b4771] font-bold`}>{record.heartRate} bpm</Text>
+                  </View>
+                ) : null}
+                {record.temperature ? (
+                  <View style={tw`w-1/3 mb-4`}>
+                    <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>SUHU</Text>
+                    <Text style={tw`text-[#0b4771] font-bold`}>{record.temperature} °C</Text>
+                  </View>
+                ) : null}
+                {record.oxygenSaturation ? (
+                  <View style={tw`w-1/3 mb-2`}>
+                    <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>SATURASI O2</Text>
+                    <Text style={tw`text-[#0b4771] font-bold`}>{record.oxygenSaturation} %</Text>
+                  </View>
+                ) : null}
+                {record.weight ? (
+                  <View style={tw`w-1/3 mb-2`}>
+                    <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>BERAT</Text>
+                    <Text style={tw`text-[#0b4771] font-bold`}>{record.weight} kg</Text>
+                  </View>
+                ) : null}
+                {record.height ? (
+                  <View style={tw`w-1/3 mb-2`}>
+                    <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>TINGGI</Text>
+                    <Text style={tw`text-[#0b4771] font-bold`}>{record.height} cm</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {record.notes ? (
+                <View style={tw`border-t border-slate-100 pt-4`}>
+                  <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>CATATAN TAMBAHAN</Text>
+                  <Text style={tw`text-[#475569] text-sm`}>{record.notes}</Text>
+                </View>
+              ) : null}
+            </View>
+          )}
+
+          {record.type === 'Lab' && (
+            <View style={tw`gap-4`}>
+              <View>
+                <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>JENIS LAB</Text>
+                <Text style={tw`text-[#0b4771] font-bold text-base`}>{record.labType || '-'}</Text>
+              </View>
+              {record.labNotes ? (
+                <View style={tw`border-t border-slate-100 pt-4`}>
+                  <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>CATATAN KLINIS</Text>
+                  <Text style={tw`text-[#475569] text-sm`}>{record.labNotes}</Text>
+                </View>
+              ) : null}
+            </View>
+          )}
+
+          {record.type === 'Resep' && (
+            <View style={tw`gap-4`}>
+              <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider`}>DAFTAR OBAT</Text>
+              {Array.isArray(record.prescriptions) && record.prescriptions.length > 0 ? (
+                <View style={tw`gap-3`}>
+                  {record.prescriptions.map((p: any, idx: number) => (
+                    <View key={idx} style={tw`bg-[#f8fafc] p-4 rounded-xl flex-row items-center`}>
+                      <Ionicons name="medkit" size={24} color="#1ba098" style={tw`mr-4`} />
+                      <View style={tw`flex-1`}>
+                        <Text style={tw`text-[#0b4771] font-bold text-sm`}>{p.name}</Text>
+                        <Text style={tw`text-[#64748b] text-xs`}>{p.dose} • {p.freq}</Text>
+                      </View>
+                      <Text style={tw`text-[#475569] text-xs max-w-[150px] text-right`}>{p.instructions}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={tw`text-[#475569] text-sm`}>Tidak ada data obat terlampir.</Text>
+              )}
+              {record.prescriptionNotes ? (
+                <View style={tw`border-t border-slate-100 pt-4`}>
+                  <Text style={tw`text-[#94a3b8] text-xs font-bold tracking-wider mb-1`}>CATATAN APOTEKER</Text>
+                  <Text style={tw`text-[#475569] text-sm`}>{record.prescriptionNotes}</Text>
+                </View>
+              ) : null}
+            </View>
+          )}
+
+          {!record.type && (
+            <View style={tw`bg-slate-50/50 rounded-2xl p-4 border border-slate-100/50`}>
+              <Text style={tw`text-slate-600 text-sm leading-relaxed font-medium`}>
+                {record.description}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Floating Download PDF Button */}

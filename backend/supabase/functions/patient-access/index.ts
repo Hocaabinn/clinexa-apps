@@ -77,7 +77,7 @@ serve(async (req) => {
     const action = String(body.action ?? '');
     const nik = normalizeNik(body.nik);
 
-    if (['check_nik', 'login_patient', 'register_patient', 'get_patient', 'list_records', 'get_record'].includes(action)) {
+    if (['check_nik', 'login_patient', 'register_patient', 'get_patient', 'list_records', 'get_record', 'update_consent'].includes(action)) {
       assertNik(nik);
     }
 
@@ -172,7 +172,7 @@ serve(async (req) => {
 
       const { data, error } = await supabase
         .from('medical_records')
-        .select('*')
+        .select('*, staff:staff_id(name, institution, specialization)')
         .eq('patient_id', patient.id)
         .order('created_at', { ascending: false });
 
@@ -190,13 +190,36 @@ serve(async (req) => {
 
       const { data, error } = await supabase
         .from('medical_records')
-        .select('*')
+        .select('*, staff:staff_id(name, institution, specialization)')
         .eq('id', recordId)
         .eq('patient_id', patient.id)
         .single();
 
       if (error) throw error;
       return json({ patient: { id: patient.id, name: patient.name }, record: data });
+    }
+
+    if (action === 'update_consent') {
+      const patient = await findPatientByNik(nik);
+      if (!patient) return json({ error: 'Data pasien tidak ditemukan.' }, 404);
+      assertWallet(patient, body.wallet_address ? String(body.wallet_address) : undefined);
+
+      const recordId = String(body.record_id ?? '');
+      const consentStatus = String(body.consent_status ?? '');
+      if (!recordId || !['granted', 'denied', 'pending'].includes(consentStatus)) {
+        throw new Error('Record ID dan Status Persetujuan valid wajib diisi.');
+      }
+
+      const { data, error } = await supabase
+        .from('medical_records')
+        .update({ consent_status: consentStatus })
+        .eq('id', recordId)
+        .eq('patient_id', patient.id)
+        .select('*, staff:staff_id(name, institution, specialization)')
+        .single();
+
+      if (error) throw error;
+      return json({ record: data });
     }
 
     return json({ error: 'Unknown action' }, 400);
