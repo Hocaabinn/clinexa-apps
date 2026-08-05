@@ -20,9 +20,10 @@ export async function callPatientAccess<T>(action: PatientAction, payload: Patie
 
   if (error) {
     // Attempt to extract the actual error body returned by the Deno Edge Function
-    if (error instanceof FunctionsHttpError && error.context) {
+    const errObj = error as any;
+    if (errObj && errObj.context && typeof errObj.context.json === 'function') {
       try {
-        const body = await error.context.json();
+        const body = await errObj.context.json();
         if (body && body.error) {
           throw new Error(body.error);
         }
