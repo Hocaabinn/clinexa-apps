@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, StatusBar, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import tw from 'twrnc';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import 'react-native-get-random-values';
 import { Buffer } from 'buffer';
@@ -103,50 +103,52 @@ export default function DashboardIndex() {
     }
   };
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const cached = patientDataCache.get() as any;
-        if (cached) {
-          setPatientData(cached);
-          if (cached.avatar_url) {
-            setProfileImage(cached.avatar_url);
-          } else {
-            setProfileImage(`https://api.dicebear.com/7.x/initials/png?seed=${cached.name}&backgroundColor=0b4771,1ba39a`);
-          }
-        }
-
-        const nik = await SecureStore.getItemAsync('user_nik');
-        if (nik) {
-          const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
-          const data = await callPatientAccess<any>('get_patient', {
-            nik,
-            wallet_address: walletAddress,
-          });
-
-          setPatientData(data);
-          patientDataCache.set(data);
-          if (data.avatar_url) {
-            setProfileImage(data.avatar_url);
-            if (Platform.OS === 'web') {
-              localStorage.setItem('user_profile_image', data.avatar_url);
+  useFocusEffect(
+    useCallback(() => {
+      const loadUserData = async () => {
+        try {
+          const cached = patientDataCache.get() as any;
+          if (cached) {
+            setPatientData(cached);
+            if (cached.avatar_url) {
+              setProfileImage(cached.avatar_url);
             } else {
-              await SecureStore.setItemAsync('user_profile_image', data.avatar_url);
+              setProfileImage(`https://api.dicebear.com/7.x/initials/png?seed=${cached.name}&backgroundColor=0b4771,1ba39a`);
             }
-          } else {
-            setProfileImage(`https://api.dicebear.com/7.x/initials/png?seed=${data.name}&backgroundColor=0b4771,1ba39a`);
           }
-          fetchMedicalVisits(data.id);
-        }
-      } catch (err) {
-        console.error("Error loading user data:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    loadUserData();
-  }, []);
+          const nik = await SecureStore.getItemAsync('user_nik');
+          if (nik) {
+            const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
+            const data = await callPatientAccess<any>('get_patient', {
+              nik,
+              wallet_address: walletAddress,
+            });
+
+            setPatientData(data);
+            patientDataCache.set(data);
+            if (data.avatar_url) {
+              setProfileImage(data.avatar_url);
+              if (Platform.OS === 'web') {
+                localStorage.setItem('user_profile_image', data.avatar_url);
+              } else {
+                await SecureStore.setItemAsync('user_profile_image', data.avatar_url);
+              }
+            } else {
+              setProfileImage(`https://api.dicebear.com/7.x/initials/png?seed=${data.name}&backgroundColor=0b4771,1ba39a`);
+            }
+            fetchMedicalVisits(data.id);
+          }
+        } catch (err) {
+          console.error("Error loading user data:", err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      loadUserData();
+    }, [])
+  );
 
   // Setup Realtime Subscription for instant medical record updates when doctor inputs data
   useEffect(() => {
@@ -178,26 +180,7 @@ export default function DashboardIndex() {
 
   const [profileImage, setProfileImage] = useState<string>('https://api.dicebear.com/7.x/initials/png?seed=User&backgroundColor=0b4771,1ba39a');
 
-  useEffect(() => {
-    const loadProfileImage = async () => {
-      try {
-        let savedImage: string | null = null;
-        if (Platform.OS === 'web') {
-          if (typeof window !== 'undefined') {
-            savedImage = localStorage.getItem('user_profile_image');
-          }
-        } else {
-          savedImage = await SecureStore.getItemAsync('user_profile_image');
-        }
-        if (savedImage) {
-          setProfileImage(savedImage);
-        }
-      } catch (e) {
-        console.error('Error loading saved profile image:', e);
-      }
-    };
-    loadProfileImage();
-  }, []);
+
 
   return (
     <View style={tw`flex-1 bg-white relative`}>
