@@ -42,6 +42,42 @@ const getDaysInMonth = (monthName: string, yearStr: string) => {
   return new Date(year, monthIndex + 1, 0).getDate();
 };
 
+const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const lookup = new Uint8Array(256);
+  for (let i = 0; i < chars.length; i++) {
+    lookup[chars.charCodeAt(i)] = i;
+  }
+
+  let bufferLength = base64.length * 0.75;
+  const len = base64.length;
+  let i = 0;
+  let p = 0;
+
+  if (base64[len - 1] === '=') {
+    bufferLength--;
+    if (base64[len - 2] === '=') {
+      bufferLength--;
+    }
+  }
+
+  const arrayBuffer = new ArrayBuffer(bufferLength);
+  const bytes = new Uint8Array(arrayBuffer);
+
+  for (i = 0; i < len; i += 4) {
+    const encoded1 = lookup[base64.charCodeAt(i)];
+    const encoded2 = lookup[base64.charCodeAt(i + 1)];
+    const encoded3 = lookup[base64.charCodeAt(i + 2)];
+    const encoded4 = lookup[base64.charCodeAt(i + 3)];
+
+    bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+    if (p < bufferLength) bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+    if (p < bufferLength) bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+  }
+
+  return arrayBuffer;
+};
+
 interface FullPatientData {
   id: string;
   name: string;
@@ -90,43 +126,19 @@ export default function ProfileScreen() {
     loadProfileImage();
   }, []);
 
-  const uploadAvatarToSupabase = async (uri: string, customMimeType?: string) => {
+  const uploadAvatarToSupabase = async (base64Data: string, fileExtension: string, contentType: string) => {
     try {
       if (!patientData?.id) return;
       setIsSaving(true);
 
-      let blob: Blob;
-      let contentType = customMimeType || 'image/jpeg';
-      let fileExtension = contentType.split('/')[1] || 'jpg';
-
-      if (Platform.OS === 'web') {
-        const response = await fetch(uri);
-        blob = await response.blob();
-        const mime = uri.split(',')[0].split(':')[1].split(';')[0];
-        contentType = mime;
-        fileExtension = mime.split('/')[1] || 'jpg';
-      } else {
-        // Use XMLHttpRequest for native file URIs (Expo/RN) to support local filesystem URIs
-        blob = await new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.onload = function () {
-            resolve(xhr.response);
-          };
-          xhr.onerror = function (e) {
-            reject(new Error('Gagal membaca file gambar lokal.'));
-          };
-          xhr.responseType = 'blob';
-          xhr.open('GET', uri, true);
-          xhr.send(null);
-        });
-      }
-
+      // Convert base64 data to ArrayBuffer for uploading safely in React Native
+      const arrayBuffer = base64ToArrayBuffer(base64Data);
       const filePath = `${patientData.id}.${fileExtension}`;
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, blob, {
+        .upload(filePath, arrayBuffer, {
           contentType,
           upsert: true
         });
@@ -183,7 +195,11 @@ export default function ProfileScreen() {
             reader.onload = (event) => {
               const result = event.target?.result as string;
               if (result) {
-                uploadAvatarToSupabase(result);
+                const parts = result.split(',');
+                const base64Data = parts[1];
+                const mime = parts[0].split(':')[1].split(';')[0];
+                const fileExtension = mime.split('/')[1] || 'jpg';
+                uploadAvatarToSupabase(base64Data, fileExtension, mime);
               }
             };
             reader.readAsDataURL(file);
@@ -204,16 +220,22 @@ export default function ProfileScreen() {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets[0].uri) {
-        const imageUri = result.assets[0].uri;
-        const mimeType = result.assets[0].mimeType || 'image/jpeg';
-        await uploadAvatarToSupabase(imageUri, mimeType);
+        const asset = result.assets[0];
+        const base64Data = asset.base64;
+        if (!base64Data) {
+          throw new Error('Gagal memproses data gambar.');
+        }
+        const mimeType = asset.mimeType || 'image/jpeg';
+        const fileExtension = mimeType.split('/')[1] || 'jpg';
+        await uploadAvatarToSupabase(base64Data, fileExtension, mimeType);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error picking image:', error);
-      Alert.alert('Gagal', 'Terjadi kesalahan saat memilih foto profil.');
+      Alert.alert('Gagal', 'Terjadi kesalahan saat memilih foto profil: ' + error.message);
     }
   };
 
