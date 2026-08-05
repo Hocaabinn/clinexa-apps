@@ -120,8 +120,8 @@ export default function StaffDashboard() {
 
     const getActivityIcon = (status: string) => {
         switch (status) {
-            case 'granted': return { icon: 'checkmark', bg: 'bg-[#ccf9df]', color: '#18d876' };
-            case 'denied': return { icon: 'close', bg: 'bg-[#ffdada]', color: '#ff4d4f' };
+            case 'approved': return { icon: 'checkmark', bg: 'bg-[#ccf9df]', color: '#18d876' };
+            case 'rejected': return { icon: 'close', bg: 'bg-[#ffdada]', color: '#ff4d4f' };
             default: return { icon: 'document-text', bg: 'bg-[#e5d8ff]', color: '#8b5cf6' };
         }
     };
@@ -129,8 +129,8 @@ export default function StaffDashboard() {
     const getActivityTitle = (activity: RecentActivity) => {
         const typeMap: Record<string, string> = { pemeriksaan: 'Pemeriksaan', laboratorium: 'Tes Lab', resep: 'Resep Obat' };
         const statusMap: Record<string, string> = {
-            granted: 'Akses Diberikan',
-            denied: 'Akses Ditolak',
+            approved: 'Akses Diberikan',
+            rejected: 'Akses Ditolak',
             pending: 'Menunggu Konfirmasi',
         };
         return `${activity.patient_name} — ${typeMap[activity.record_type] || activity.record_type} (${statusMap[activity.consent_status] || activity.consent_status})`;

@@ -203,13 +203,11 @@ serve(async (req) => {
       const patient = await findPatientByNik(nik);
       if (!patient) return json({ error: 'Data pasien tidak ditemukan.' }, 404);
       assertWallet(patient, body.wallet_address ? String(body.wallet_address) : undefined);
-
       const recordId = String(body.record_id ?? '');
       const consentStatus = String(body.consent_status ?? '');
-      if (!recordId || !['granted', 'denied', 'pending'].includes(consentStatus)) {
+      if (!recordId || !['approved', 'rejected', 'pending'].includes(consentStatus)) {
         throw new Error('Record ID dan Status Persetujuan valid wajib diisi.');
       }
-
       const { data, error } = await supabase
         .from('medical_records')
         .update({ consent_status: consentStatus })

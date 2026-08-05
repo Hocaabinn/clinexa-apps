@@ -23,7 +23,7 @@ export default function RekamMedisList() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('Semua');
-  const [stats, setStats] = useState({ granted: 0, pending: 0, denied: 0 });
+  const [stats, setStats] = useState({ approved: 0, pending: 0, rejected: 0 });
   const isMobile = width < 640;
   const isTablet = width >= 640 && width < 1024;
 
@@ -90,9 +90,9 @@ export default function RekamMedisList() {
       }
 
       if (data) {
-        let grantedCount = 0;
+        let approvedCount = 0;
         let pendingCount = 0;
-        let deniedCount = 0;
+        let rejectedCount = 0;
 
         const formattedRecords = data.map((item: any) => {
           let desc = '';
@@ -106,13 +106,13 @@ export default function RekamMedisList() {
             desc = `Resep Obat • ${dateStr}`;
           }
 
-          if (item.consent_status === 'granted') grantedCount++;
+          if (item.consent_status === 'approved') approvedCount++;
           else if (item.consent_status === 'pending') pendingCount++;
-          else if (item.consent_status === 'denied') deniedCount++;
+          else if (item.consent_status === 'rejected') rejectedCount++;
 
           const statusMap: Record<string, string> = {
-            granted: 'Diterima',
-            denied: 'Ditolak',
+            approved: 'Diterima',
+            rejected: 'Ditolak',
             pending: 'Menunggu Izin'
           };
 
@@ -129,7 +129,7 @@ export default function RekamMedisList() {
         });
 
         setRecords(formattedRecords);
-        setStats({ granted: grantedCount, pending: pendingCount, denied: deniedCount });
+        setStats({ approved: approvedCount, pending: pendingCount, rejected: rejectedCount });
       }
     } catch (err) {
       console.error(err);
@@ -190,7 +190,7 @@ export default function RekamMedisList() {
           <View style={tw`w-12 h-12 bg-[#eef8f2] rounded-xl items-center justify-center ${isMobile ? 'mb-4' : 'mb-6'}`}>
             <Ionicons name="shield-checkmark-outline" size={24} color="#16a34a" />
           </View>
-          <Text style={tw`text-[#0b4771] text-3xl font-bold mb-1`}>{stats.granted}</Text>
+          <Text style={tw`text-[#0b4771] text-3xl font-bold mb-1`}>{stats.approved}</Text>
           <Text style={tw`text-[#94a3b8] text-sm font-medium`}>Diterima</Text>
         </View>
 
@@ -206,7 +206,7 @@ export default function RekamMedisList() {
           <View style={tw`w-12 h-12 bg-[#fef2f2] rounded-xl items-center justify-center ${isMobile ? 'mb-4' : 'mb-6'}`}>
             <Ionicons name="close-circle-outline" size={24} color="#dc2626" />
           </View>
-          <Text style={tw`text-[#0b4771] text-3xl font-bold mb-1`}>{stats.denied}</Text>
+          <Text style={tw`text-[#0b4771] text-3xl font-bold mb-1`}>{stats.rejected}</Text>
           <Text style={tw`text-[#94a3b8] text-sm font-medium`}>Ditolak</Text>
         </View>
       </View>

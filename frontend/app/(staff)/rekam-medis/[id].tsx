@@ -50,7 +50,7 @@ export default function RekamMedisDetail() {
   }
 
   const patient = record.patients || {};
-  const isGranted = record.consent_status === 'granted';
+  const isGranted = record.consent_status === 'approved';
 
   return (
     <View style={tw`flex-1 bg-[#f4f6f8]`}>

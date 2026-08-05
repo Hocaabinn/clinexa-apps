@@ -22,7 +22,7 @@ interface ActivityItem {
   doctorName: string;
   institution: string;
   specialization: string;
-  status: 'granted' | 'pending' | 'denied';
+  status: 'approved' | 'pending' | 'rejected';
   date: string;
   time: string;
   type: string;
@@ -60,9 +60,9 @@ export default function RiwayatAktivitasScreen() {
         let deniedCount = 0;
 
         const formatted: ActivityItem[] = records.map((doc: any) => {
-          if (doc.consent_status === 'granted') activeCount++;
+          if (doc.consent_status === 'approved') activeCount++;
           else if (doc.consent_status === 'pending') pendingCount++;
-          else if (doc.consent_status === 'denied') deniedCount++;
+          else if (doc.consent_status === 'rejected') deniedCount++;
 
           const dateObj = doc.created_at ? new Date(doc.created_at) : new Date();
           const typeMap: Record<string, string> = {
@@ -102,7 +102,7 @@ export default function RiwayatAktivitasScreen() {
     fetchActivities();
   }, []);
 
-  const handleUpdateConsent = async (recordId: string, nextStatus: 'granted' | 'denied') => {
+  const handleUpdateConsent = async (recordId: string, nextStatus: 'approved' | 'rejected') => {
     try {
       setUpdatingId(recordId);
       const nik = await SecureStore.getItemAsync('user_nik');
@@ -120,7 +120,7 @@ export default function RiwayatAktivitasScreen() {
       await fetchActivities();
       Alert.alert(
         'Berhasil',
-        nextStatus === 'granted'
+        nextStatus === 'approved'
           ? 'Akses rekam medis telah disetujui.'
           : 'Akses rekam medis telah ditolak/dibatalkan.'
       );
@@ -218,11 +218,11 @@ export default function RiwayatAktivitasScreen() {
               ]}>
                 <View style={tw`flex-row justify-between items-start mb-4`}>
                   <View style={tw`flex-row items-center flex-1 pr-2`}>
-                     <View style={tw`w-12 h-12 rounded-full ${item.status === 'granted' ? 'bg-[#dcfce7]' : item.status === 'pending' ? 'bg-[#fff5e6]' : 'bg-[#fef2f2]'} items-center justify-center mr-3.5`}>
+                     <View style={tw`w-12 h-12 rounded-full ${item.status === 'approved' ? 'bg-[#dcfce7]' : item.status === 'pending' ? 'bg-[#fff5e6]' : 'bg-[#fef2f2]'} items-center justify-center mr-3.5`}>
                       <MaterialCommunityIcons 
-                        name={item.status === 'granted' ? 'briefcase-plus' : item.status === 'pending' ? 'shield-lock-outline' : 'shield-alert-outline'} 
+                        name={item.status === 'approved' ? 'briefcase-plus' : item.status === 'pending' ? 'shield-lock-outline' : 'shield-alert-outline'} 
                         size={22} 
-                        color={item.status === 'granted' ? '#16a34a' : item.status === 'pending' ? '#ff9f1c' : '#ef4444'} 
+                        color={item.status === 'approved' ? '#16a34a' : item.status === 'pending' ? '#ff9f1c' : '#ef4444'} 
                       />
                      </View>
                     <View style={tw`flex-1`}>
@@ -232,13 +232,13 @@ export default function RiwayatAktivitasScreen() {
                   </View>
                   <View style={[
                     tw`px-3 py-1 rounded-full border`, 
-                    item.status === 'granted' ? tw`border-[#22c55e] bg-[#e8fbf1]` : item.status === 'pending' ? tw`border-[#ff9f1c] bg-[#fffbf0]` : tw`border-[#ef4444] bg-[#fdf2f2]`
+                    item.status === 'approved' ? tw`border-[#22c55e] bg-[#e8fbf1]` : item.status === 'pending' ? tw`border-[#ff9f1c] bg-[#fffbf0]` : tw`border-[#ef4444] bg-[#fdf2f2]`
                   ]}>
                     <Text style={[
                       tw`text-[10px] font-bold`, 
-                      item.status === 'granted' ? tw`text-[#22c55e]` : item.status === 'pending' ? tw`text-[#ff9f1c]` : tw`text-[#ef4444]`
+                      item.status === 'approved' ? tw`text-[#22c55e]` : item.status === 'pending' ? tw`text-[#ff9f1c]` : tw`text-[#ef4444]`
                     ]}>
-                      {item.status.toUpperCase()}
+                      {item.status === 'approved' ? 'DITERIMA' : item.status === 'pending' ? 'PENDING' : 'DITOLAK'}
                     </Text>
                   </View>
                 </View>
@@ -264,7 +264,7 @@ export default function RiwayatAktivitasScreen() {
                       <View style={tw`flex-row gap-3`}>
                         <TouchableOpacity
                           style={tw`flex-1 border border-[#ef4444] py-3 rounded-2xl flex-row items-center justify-center`}
-                          onPress={() => handleUpdateConsent(item.id, 'denied')}
+                          onPress={() => handleUpdateConsent(item.id, 'rejected')}
                         >
                           <Ionicons name="close-circle-outline" size={18} color="#ef4444" style={tw`mr-2`} />
                           <Text style={tw`text-[#ef4444] font-extrabold text-sm`}>Tolak</Text>
@@ -272,7 +272,7 @@ export default function RiwayatAktivitasScreen() {
                         
                         <TouchableOpacity
                           style={tw`flex-1 bg-[#1ba39a] py-3 rounded-2xl flex-row items-center justify-center`}
-                          onPress={() => handleUpdateConsent(item.id, 'granted')}
+                          onPress={() => handleUpdateConsent(item.id, 'approved')}
                         >
                           <Ionicons name="checkmark-circle-outline" size={18} color="white" style={tw`mr-2`} />
                           <Text style={tw`text-white font-extrabold text-sm`}>Setujui</Text>
@@ -280,20 +280,20 @@ export default function RiwayatAktivitasScreen() {
                       </View>
                     )}
 
-                    {item.status === 'granted' && (
+                    {item.status === 'approved' && (
                       <TouchableOpacity
                         style={tw`bg-[#ef4444] py-3.5 rounded-2xl flex-row items-center justify-center`}
-                        onPress={() => handleUpdateConsent(item.id, 'denied')}
+                        onPress={() => handleUpdateConsent(item.id, 'rejected')}
                       >
                         <Ionicons name="close-circle-outline" size={18} color="white" style={tw`mr-2`} />
                         <Text style={tw`text-white font-extrabold text-sm`}>Batalkan Akses</Text>
                       </TouchableOpacity>
                     )}
 
-                    {item.status === 'denied' && (
+                    {item.status === 'rejected' && (
                       <TouchableOpacity
                         style={tw`bg-gray-100 py-3.5 rounded-2xl flex-row items-center justify-center`}
-                        onPress={() => handleUpdateConsent(item.id, 'granted')}
+                        onPress={() => handleUpdateConsent(item.id, 'approved')}
                       >
                         <Ionicons name="refresh-outline" size={18} color="#475569" style={tw`mr-2`} />
                         <Text style={tw`text-[#475569] font-extrabold text-sm`}>Berikan Akses Kembali</Text>
