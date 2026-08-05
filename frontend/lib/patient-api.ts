@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
 type PatientAction =
@@ -18,6 +19,17 @@ export async function callPatientAccess<T>(action: PatientAction, payload: Patie
   });
 
   if (error) {
+    // Attempt to extract the actual error body returned by the Deno Edge Function
+    if (error instanceof FunctionsHttpError && error.context) {
+      try {
+        const body = await error.context.json();
+        if (body && body.error) {
+          throw new Error(body.error);
+        }
+      } catch (e) {
+        // Fallback if parsing fails
+      }
+    }
     throw new Error(error.message);
   }
 
