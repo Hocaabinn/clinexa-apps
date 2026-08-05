@@ -26,6 +26,7 @@ type Patient = {
   birth_date?: string;
   blood_type?: string;
   wallet_address?: string | null;
+  avatar_url?: string | null;
 };
 
 function json(body: unknown, status = 200) {
@@ -55,7 +56,7 @@ function assertWallet(patient: Patient, walletAddress?: string) {
 async function findPatientByNik(nik: string) {
   const { data, error } = await supabase
     .from('patients')
-    .select('id, nik, name, gender, birth_date, blood_type, wallet_address')
+    .select('id, nik, name, gender, birth_date, blood_type, wallet_address, avatar_url')
     .eq('nik', nik)
     .maybeSingle();
 
@@ -134,6 +135,7 @@ serve(async (req) => {
         birth_date: patient.birth_date,
         blood_type: patient.blood_type,
         wallet_address: patient.wallet_address,
+        avatar_url: patient.avatar_url,
       });
     }
 
@@ -149,16 +151,18 @@ serve(async (req) => {
       if (fetchError) throw fetchError;
       assertWallet(patient as Patient, body.wallet_address ? String(body.wallet_address) : undefined);
 
+      const updateData: any = {};
+      if (body.name !== undefined) updateData.name = String(body.name ?? '').trim();
+      if (body.gender !== undefined) updateData.gender = body.gender;
+      if (body.birth_date !== undefined) updateData.birth_date = body.birth_date;
+      if (body.blood_type !== undefined) updateData.blood_type = body.blood_type;
+      if (body.avatar_url !== undefined) updateData.avatar_url = body.avatar_url;
+
       const { data, error } = await supabase
         .from('patients')
-        .update({
-          name: String(body.name ?? '').trim(),
-          gender: body.gender,
-          birth_date: body.birth_date,
-          blood_type: body.blood_type,
-        })
+        .update(updateData)
         .eq('id', patientId)
-        .select('id, name, gender, birth_date, blood_type')
+        .select('id, name, gender, birth_date, blood_type, avatar_url')
         .single();
 
       if (error) throw error;

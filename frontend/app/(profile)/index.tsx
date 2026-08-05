@@ -152,13 +152,13 @@ export default function ProfileScreen() {
 
       const publicUrl = urlData.publicUrl;
 
-      // Update patients table
-      const { error: updateError } = await supabase
-        .from('patients')
-        .update({ avatar_url: publicUrl })
-        .eq('id', patientData.id);
-
-      if (updateError) throw updateError;
+      // Update patients table via server-side Edge Function to bypass RLS constraints
+      const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
+      await callPatientAccess('update_patient', {
+        patient_id: patientData.id,
+        wallet_address: walletAddress,
+        avatar_url: publicUrl,
+      });
 
       // Update local state and cache
       setProfileImage(publicUrl);
