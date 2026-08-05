@@ -102,7 +102,7 @@ export default function RiwayatAktivitasScreen() {
     fetchActivities();
   }, []);
 
-  const handleUpdateConsent = async (recordId: string, nextStatus: 'approved' | 'rejected') => {
+  const executeUpdateConsent = async (recordId: string, nextStatus: 'approved' | 'rejected') => {
     try {
       setUpdatingId(recordId);
       const nik = await SecureStore.getItemAsync('user_nik');
@@ -130,6 +130,24 @@ export default function RiwayatAktivitasScreen() {
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleUpdateConsent = (recordId: string, nextStatus: 'approved' | 'rejected') => {
+    const isApprove = nextStatus === 'approved';
+    Alert.alert(
+      isApprove ? 'Setujui Akses?' : 'Batalkan Akses?',
+      isApprove 
+        ? 'Apakah Anda yakin ingin memberikan akses rekam medis ini kepada dokter/staf?'
+        : 'Apakah Anda yakin ingin membatalkan/menolak akses rekam medis ini? Dokter/staf tidak akan dapat melihat data ini lagi.',
+      [
+        { text: 'Batal', style: 'cancel' },
+        { 
+          text: isApprove ? 'Setujui' : 'Ya, Batalkan', 
+          style: isApprove ? 'default' : 'destructive',
+          onPress: () => executeUpdateConsent(recordId, nextStatus)
+        }
+      ]
+    );
   };
 
   return (
