@@ -276,6 +276,9 @@ function RekamMedisScreen() {
 
       {/* Main Content Area */}
       <ScrollView showsVerticalScrollIndicator={false} style={tw`flex-1 mb-20`}>
+        {/* Fix iOS bounce background color gap */}
+        <View style={[tw`absolute top-[-1000px] left-0 right-0 h-[1000px] bg-[#2ea89c]`]} />
+
         {/* Header Section */}
         <View style={[
           tw`bg-[#2ea89c] rounded-b-[40px] pb-20 px-6 overflow-hidden relative`,
