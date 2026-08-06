@@ -8,12 +8,12 @@ import { StaffAuthContext, fetchStaffProfile } from '../../lib/staff-auth';
 import type { StaffProfile } from '../../lib/staff-auth';
 
 const navItems = [
-    { name: 'Dashboard', path: '/(staff)', icon: 'grid-outline' },
-    { name: 'Minta Akses', path: '/(staff)/minta-akses', icon: 'key-outline' },
-    { name: 'Rekam Medis', path: '/(staff)/rekam-medis', icon: 'clipboard-outline' },
-    { name: 'Log Akses', path: '/(staff)/log-akses', icon: 'time-outline' },
-    { name: 'Notifikasi', path: '/(staff)/notifikasi', icon: 'notifications-outline' },
-    { name: 'Profil', path: '/(staff)/profil', icon: 'person-outline' },
+    { name: 'Dashboard', path: '/(staff)', matchPath: '/', icon: 'grid-outline' },
+    { name: 'Minta Akses', path: '/(staff)/minta-akses', matchPath: '/minta-akses', icon: 'key-outline' },
+    { name: 'Rekam Medis', path: '/(staff)/rekam-medis', matchPath: '/rekam-medis', icon: 'clipboard-outline' },
+    { name: 'Log Akses', path: '/(staff)/log-akses', matchPath: '/log-akses', icon: 'time-outline' },
+    { name: 'Notifikasi', path: '/(staff)/notifikasi', matchPath: '/notifikasi', icon: 'notifications-outline' },
+    { name: 'Profil', path: '/(staff)/profil', matchPath: '/profil', icon: 'person-outline' },
 ];
 
 export default function StaffLayout() {
@@ -21,6 +21,7 @@ export default function StaffLayout() {
     const pathname = usePathname();
     const [staffProfile, setStaffProfile] = useState<StaffProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [pendingCount, setPendingCount] = useState(0);
 
     const loadProfile = async () => {
         const { data: { session } } = await supabase.auth.getSession();
@@ -31,8 +32,35 @@ export default function StaffLayout() {
         setIsLoading(false);
     };
 
+    const fetchPendingCount = async () => {
+        const { count, error } = await supabase
+            .from('medical_records')
+            .select('*', { count: 'exact', head: true })
+            .eq('consent_status', 'pending');
+        if (!error && count !== null) {
+            setPendingCount(count);
+        }
+    };
+
     useEffect(() => {
         loadProfile();
+        fetchPendingCount();
+
+        const channelName = `sidebar-realtime-${Date.now()}`;
+        const channel = supabase
+            .channel(channelName)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'medical_records' },
+                () => {
+                    fetchPendingCount();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     const handleLogout = async () => {
@@ -93,27 +121,43 @@ export default function StaffLayout() {
                     </View>
                     <ScrollView style={tw`flex-1 py-4 px-3`}>
                         {navItems.map((item) => {
-                            const isActive = pathname === item.path || (pathname === '/(staff)/index' && item.path === '/(staff)');
+                            const isActive = item.matchPath === '/'
+                                ? (pathname === '/' || pathname === '' || pathname === '/(staff)' || pathname === '/(staff)/' || pathname === '/(staff)/index')
+                                : (pathname.startsWith(item.matchPath) || pathname.startsWith(item.path));
+                            const showBadge = (item.name === 'Rekam Medis' || item.name === 'Log Akses' || item.name === 'Notifikasi') && pendingCount > 0;
+                            
                             return (
                                 <TouchableOpacity
                                     key={item.name}
                                     style={[
-                                        tw`flex-row items-center px-4 py-3.5 rounded-xl mb-1`,
-                                        isActive ? tw`bg-[#eef1f5]` : tw`bg-transparent`
+                                        tw`flex-row items-center rounded-xl mb-1 overflow-hidden`,
+                                        isActive ? tw`bg-[#e6f7f6]` : tw`bg-transparent`
                                     ]}
                                     onPress={() => router.push(item.path as any)}
                                 >
-                                    <Ionicons
-                                        name={item.icon as any}
-                                        size={22}
-                                        color={isActive ? '#1ba39a' : '#0b4771'}
-                                    />
-                                    <Text style={[
-                                        tw`ml-3 text-base font-light`,
-                                        isActive ? tw`text-[#1ba39a] font-medium` : tw`text-[#0b4771]`
-                                    ]}>
-                                        {item.name}
-                                    </Text>
+                                    {/* Accent bar indicator */}
+                                    <View style={[
+                                        tw`w-1 self-stretch rounded-r-full`,
+                                        isActive ? tw`bg-[#1ba39a]` : tw`bg-transparent`
+                                    ]} />
+                                    <View style={tw`flex-row items-center flex-1 px-3.5 py-3.5`}>
+                                        <Ionicons
+                                            name={(isActive ? item.icon.replace('-outline', '') : item.icon) as any}
+                                            size={22}
+                                            color={isActive ? '#1ba39a' : '#6b7b8d'}
+                                        />
+                                        <Text style={[
+                                            tw`ml-3 text-base flex-1`,
+                                            isActive ? tw`text-[#1ba39a] font-semibold` : tw`text-[#0b4771] font-light`
+                                        ]}>
+                                            {item.name}
+                                        </Text>
+                                        {showBadge && (
+                                            <View style={tw`bg-[#ff4d4f] px-2 py-0.5 rounded-full items-center justify-center`}>
+                                                <Text style={tw`text-white text-xs font-bold`}>{pendingCount}</Text>
+                                            </View>
+                                        )}
+                                    </View>
                                 </TouchableOpacity>
                             );
                         })}
