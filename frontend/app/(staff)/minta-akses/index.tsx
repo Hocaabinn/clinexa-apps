@@ -1,74 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Platform, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 import * as Clipboard from 'expo-clipboard';
-
-
-
-// Helper to generate deterministic QR Code-like matrix
-const generateQRCodeMatrix = (text: string) => {
-    const size = 21;
-    const matrix = Array(size).fill(null).map(() => Array(size).fill(0));
-
-    // Helper to draw finder pattern
-    const drawFinder = (rowStart: number, colStart: number) => {
-        for (let r = 0; r < 7; r++) {
-            for (let c = 0; c < 7; c++) {
-                const isOuterBorder = r === 0 || r === 6 || c === 0 || c === 6;
-                const isInnerCenter = r >= 2 && r <= 4 && c >= 2 && c <= 4;
-                matrix[rowStart + r][colStart + c] = (isOuterBorder || isInnerCenter) ? 1 : 0;
-            }
-        }
-    };
-
-    // Top-Left Finder
-    drawFinder(0, 0);
-    // Top-Right Finder
-    drawFinder(0, size - 7);
-    // Bottom-Left Finder
-    drawFinder(size - 7, 0);
-
-    // Seed from text
-    let seed = 0;
-    for (let i = 0; i < text.length; i++) {
-        seed += text.charCodeAt(i) * (i + 1);
-    }
-
-    for (let r = 0; r < size; r++) {
-        for (let c = 0; c < size; c++) {
-            // Skip finder patterns
-            const isTopLeft = r < 8 && c < 8;
-            const isTopRight = r < 8 && c >= size - 8;
-            const isBottomLeft = r >= size - 8 && c < 8;
-            if (isTopLeft || isTopRight || isBottomLeft) continue;
-
-            // Small alignment pattern at (14, 14) to (16, 16)
-            if (r >= 14 && r <= 16 && c >= 14 && c <= 16) {
-                matrix[r][c] = (r === 15 && c === 15) ? 1 : (r === 14 || r === 16 || c === 14 || c === 16 ? 1 : 0);
-                continue;
-            }
-
-            // Timing patterns
-            if (r === 6 && c > 7 && c < size - 7) {
-                matrix[r][c] = c % 2 === 0 ? 1 : 0;
-                continue;
-            }
-            if (c === 6 && r > 7 && r < size - 7) {
-                matrix[r][c] = r % 2 === 0 ? 1 : 0;
-                continue;
-            }
-
-            // Pseudo-random noise
-            const val = Math.sin(seed + r * 13 + c * 37) * 10000;
-            matrix[r][c] = (val - Math.floor(val)) > 0.55 ? 1 : 0;
-        }
-    }
-
-    return matrix;
-};
+import { useStaffAuth } from '../../../lib/staff-auth';
 
 export default function RequestAccessScreen() {
+    const { staffProfile } = useStaffAuth();
     const [requestCode, setRequestCode] = useState('');
     const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
     const [copied, setCopied] = useState(false);
@@ -113,31 +51,33 @@ export default function RequestAccessScreen() {
         setTimeout(() => setCopied(false), 2000);
     };
 
+    // Construct the scannable QR payload containing doctor details
+    const qrPayload = useMemo(() => {
+        if (!requestCode) return '';
+        return JSON.stringify({
+            type: 'clinexa-access',
+            staff_id: staffProfile?.id || 'a98b71d6-d0be-45a7-93ff-1834190c7490',
+            name: staffProfile?.name || 'Dr. Agung Setya',
+            institution: staffProfile?.institution || 'RS Semen Gresik',
+            specialization: staffProfile?.specialization || 'Dokter Umum',
+            code: requestCode
+        });
+    }, [requestCode, staffProfile]);
 
-
-    // Memoize the rendered QR code to prevent recalculating and rerendering 441 views every second
     const renderedQRCode = useMemo(() => {
-        if (!requestCode) return null;
-        const matrix = generateQRCodeMatrix(requestCode);
+        if (!qrPayload) return null;
         return (
-            <View style={tw`p-2 bg-white`}>
-                {matrix.map((row, rIdx) => (
-                    <View key={rIdx} style={tw`flex-row`}>
-                        {row.map((cell, cIdx) => (
-                            <View
-                                key={cIdx}
-                                style={{
-                                    width: 9,
-                                    height: 9,
-                                    backgroundColor: cell === 1 ? '#0b4771' : 'transparent',
-                                }}
-                            />
-                        ))}
-                    </View>
-                ))}
-            </View>
+            <Image
+                source={{ uri: `https://quickchart.io/qr?text=${encodeURIComponent(qrPayload)}&size=180&margin=1` }}
+                style={{ width: 180, height: 180 }}
+            />
         );
-    }, [requestCode]);
+    }, [qrPayload]);
+
+    const initials = useMemo(() => {
+        const name = staffProfile?.name || 'Dr. Agung Setya';
+        return name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
+    }, [staffProfile]);
 
     return (
         <ScrollView style={tw`flex-1 bg-[#f4f6f8]`} contentContainerStyle={tw`pb-10`}>
@@ -204,22 +144,22 @@ export default function RequestAccessScreen() {
                             <Text style={tw`text-[#0b4771] text-lg font-medium mb-4`}>Peminta Akses</Text>
                             <View style={tw`flex-row items-center bg-[#f8fafc] rounded-xl p-4 mb-4`}>
                                 <View style={tw`bg-[#2fc4bf] w-12 h-12 rounded-xl items-center justify-center mr-4`}>
-                                    <Text style={tw`text-white font-medium text-lg`}>AS</Text>
+                                    <Text style={tw`text-white font-medium text-lg`}>{initials}</Text>
                                 </View>
                                 <View>
-                                    <Text style={tw`text-[#0b4771] font-semibold text-base`}>Dr. Agung Setya</Text>
-                                    <Text style={tw`text-[#9aa5b5] text-sm font-light`}>Dokter Umum</Text>
+                                    <Text style={tw`text-[#0b4771] font-semibold text-base`}>{staffProfile?.name || 'Dr. Agung Setya'}</Text>
+                                    <Text style={tw`text-[#9aa5b5] text-sm font-light`}>{staffProfile?.specialization || 'Dokter Umum'}</Text>
                                 </View>
                             </View>
 
                             <View style={tw`gap-3`}>
                                 <View style={tw`flex-row justify-between py-1.5 border-b border-[#f4f6f8]`}>
                                     <Text style={tw`text-[#9aa5b5] text-sm`}>No. Registrasi / NIP</Text>
-                                    <Text style={tw`text-[#0b4771] text-sm font-medium`}>19860102010011001</Text>
+                                    <Text style={tw`text-[#0b4771] text-sm font-medium`}>{staffProfile?.registration_number || '19860102010011001'}</Text>
                                 </View>
                                 <View style={tw`flex-row justify-between py-1.5 border-b border-[#f4f6f8]`}>
                                     <Text style={tw`text-[#9aa5b5] text-sm`}>Institusi</Text>
-                                    <Text style={tw`text-[#0b4771] text-sm font-medium`}>RS Harapan Sehat Surabaya</Text>
+                                    <Text style={tw`text-[#0b4771] text-sm font-medium`}>{staffProfile?.institution || 'RS Semen Gresik'}</Text>
                                 </View>
                                 <View style={tw`flex-row justify-between py-1.5`}>
                                     <Text style={tw`text-[#9aa5b5] text-sm`}>Status Pemohon</Text>
