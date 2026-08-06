@@ -12,12 +12,14 @@ import {
   Modal,
   TextInput,
   Dimensions,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import tw from 'twrnc';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import * as Clipboard from 'expo-clipboard';
 import { Buffer } from 'buffer';
 import * as bip39 from 'bip39';
 import * as ImagePicker from 'expo-image-picker';
@@ -103,6 +105,25 @@ export default function ProfileScreen() {
   const [editYear, setEditYear] = useState('2000');
   const [editBloodType, setEditBloodType] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Recovery Password State
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [recoveryPhrase, setRecoveryPhrase] = useState('');
+
+  // Load recovery phrase on mount
+  useEffect(() => {
+    const loadRecoveryPhrase = async () => {
+      try {
+        const phrase = await SecureStore.getItemAsync('user_seed_phrase');
+        if (phrase) {
+          setRecoveryPhrase(phrase);
+        }
+      } catch (err) {
+        console.error('Failed to load recovery phrase:', err);
+      }
+    };
+    loadRecoveryPhrase();
+  }, []);
 
   // Load saved custom profile image
   useEffect(() => {
@@ -561,7 +582,13 @@ export default function ProfileScreen() {
               { elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6 }
             ]}
             activeOpacity={0.8}
-            onPress={() => Alert.alert('Recovery Password', 'Fitur pemulihan kata sandi melalui phrase pemulihan.')}
+            onPress={() => {
+              if (!recoveryPhrase) {
+                Alert.alert('Recovery Phrase', 'Recovery phrase tidak ditemukan di perangkat ini.');
+              } else {
+                setShowRecoveryModal(true);
+              }
+            }}
           >
             <View style={tw`flex-row items-center`}>
               <View style={tw`w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3`}>
@@ -584,6 +611,72 @@ export default function ProfileScreen() {
             <Text style={tw`text-[#ef4444] font-extrabold text-base`}>Keluar Akun</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Recovery Password Modal */}
+        <Modal
+          visible={showRecoveryModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowRecoveryModal(false)}
+        >
+          <View style={tw`flex-1 justify-end bg-black/50`}>
+            <TouchableOpacity 
+              style={StyleSheet.absoluteFillObject} 
+              activeOpacity={1} 
+              onPress={() => setShowRecoveryModal(false)}
+            />
+            <View style={tw`bg-white rounded-t-[40px] px-6 pt-8 pb-10 max-h-[90%] w-full`}>
+              {/* Handle Bar */}
+              <View style={tw`w-12 h-1.5 bg-gray-200 rounded-full align-self-center mx-auto mb-6`} />
+
+              <View style={tw`flex-row justify-between items-center mb-4`}>
+                <Text style={tw`text-gray-800 font-extrabold text-xl`}>Recovery Password</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowRecoveryModal(false)}
+                  style={tw`w-9 h-9 rounded-full bg-gray-100 items-center justify-center`}
+                >
+                  <Ionicons name="close" size={20} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={tw`text-gray-500 text-xs leading-relaxed mb-6`}>
+                Gunakan Recovery Phrase (12 kata kunci) atau scan QR Code di bawah untuk memulihkan akses akun Anda pada perangkat baru.
+              </Text>
+
+              {/* QR Code Container */}
+              <View style={tw`items-center justify-center bg-gray-50 p-4 rounded-3xl border border-gray-100 mb-6`}>
+                <Image
+                  source={{ uri: `https://quickchart.io/qr?text=${encodeURIComponent(recoveryPhrase)}&size=180&margin=1` }}
+                  style={{ width: 180, height: 180 }}
+                />
+              </View>
+
+              {/* Seed Phrase Grid */}
+              <Text style={tw`text-gray-400 text-[10px] font-bold tracking-wider mb-3`}>12-WORD RECOVERY PHRASE</Text>
+              <View style={tw`flex-row flex-wrap gap-2 mb-6`}>
+                {recoveryPhrase.split(' ').map((word, index) => (
+                  <View key={index} style={tw`bg-gray-100/70 border border-gray-200/50 px-3 py-2 rounded-xl flex-row items-center`}>
+                    <Text style={tw`text-gray-400 text-[10px] font-bold mr-1.5`}>{index + 1}</Text>
+                    <Text style={tw`text-gray-700 font-bold text-xs`}>{word}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Copy Button */}
+              <TouchableOpacity
+                onPress={async () => {
+                  await Clipboard.setStringAsync(recoveryPhrase);
+                  Alert.alert('Tersalin!', 'Recovery phrase telah disalin ke clipboard.');
+                }}
+                style={tw`bg-[#2ea89c] rounded-2xl py-4 flex-row justify-center items-center`}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="copy-outline" size={18} color="white" style={tw`mr-2`} />
+                <Text style={tw`text-white font-extrabold text-sm`}>Salin Recovery Phrase</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
 
       {/* Modal Edit Informasi Pribadi */}

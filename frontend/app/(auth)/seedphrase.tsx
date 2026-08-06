@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions, Platform, ActivityIndicator, Image, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +31,7 @@ export default function SeedPhraseScreen() {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [hasCopied, setHasCopied] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showQrModal, setShowQrModal] = useState(false);
 
     // Shared values for smooth modal animation
     const backdropOpacity = useSharedValue(0);
@@ -253,7 +254,7 @@ export default function SeedPhraseScreen() {
                             <Text style={styles.actionText}>Salin</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert('QR Code', 'Fitur QR Code belum tersedia.')}>
+                        <TouchableOpacity style={styles.actionButton} onPress={() => setShowQrModal(true)}>
                             <Ionicons name="qr-code-outline" size={20} color="#0D9488" />
                             <Text style={styles.actionText}>Lihat QR</Text>
                         </TouchableOpacity>
@@ -290,6 +291,42 @@ export default function SeedPhraseScreen() {
                     )}
                 </TouchableOpacity>
             </Animated.View>
+
+            {/* QR Code Modal */}
+            <Modal
+                visible={showQrModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowQrModal(false)}
+            >
+                <View style={styles.modalOverlayWrapper}>
+                    <TouchableOpacity 
+                        style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.5)' }]} 
+                        activeOpacity={1} 
+                        onPress={() => setShowQrModal(false)}
+                    />
+                    <View style={[styles.modalContentCard, { padding: 24 }]}>
+                        <Text style={[styles.modalSuccessTitle, { fontSize: 18, marginBottom: 4 }]}>QR Code Recovery</Text>
+                        <Text style={[styles.modalSuccessText, { fontSize: 12, marginBottom: 16 }]}>
+                            Scan untuk menyimpan recovery phrase akun Anda secara instan.
+                        </Text>
+                        
+                        <View style={{ backgroundColor: '#F9FAFB', padding: 12, borderRadius: 16, borderStyle: 'dashed', borderWidth: 1.5, borderColor: '#E5E7EB', marginBottom: 16 }}>
+                            <Image
+                                source={{ uri: `https://quickchart.io/qr?text=${encodeURIComponent(mnemonic.join(' '))}&size=200&margin=1` }}
+                                style={{ width: 200, height: 200 }}
+                            />
+                        </View>
+
+                        <TouchableOpacity 
+                            style={[styles.nextButton, { width: '100%', height: 48, marginTop: 0 }]}
+                            onPress={() => setShowQrModal(false)}
+                        >
+                            <Text style={styles.nextButtonText}>Tutup</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Success Modal Overlay (SweetAlert Custom) */}
             {showSuccessModal && (
