@@ -23,6 +23,8 @@ import * as Clipboard from 'expo-clipboard';
 import { Buffer } from 'buffer';
 import * as bip39 from 'bip39';
 import * as ImagePicker from 'expo-image-picker';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex } from '@noble/hashes/utils';
 import { callPatientAccess } from '../../lib/patient-api';
 import { patientDataCache, useAuth } from '../../constants/auth';
 import { supabase } from '../../lib/supabase';
@@ -114,7 +116,22 @@ export default function ProfileScreen() {
   useEffect(() => {
     const loadRecoveryPhrase = async () => {
       try {
-        const phrase = await SecureStore.getItemAsync('user_seed_phrase');
+        let phrase = await SecureStore.getItemAsync('user_seed_phrase');
+        
+        if (!phrase) {
+          // If seed phrase is missing, deterministically derive it from the wallet address
+          const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
+          if (walletAddress) {
+            // Hash the wallet address to get 16 bytes (128 bits) of entropy
+            const hash = sha256(Buffer.from(walletAddress, 'utf-8'));
+            const entropy = hash.slice(0, 16);
+            phrase = bip39.entropyToMnemonic(Buffer.from(entropy));
+            
+            // Save it securely so it persists on this device
+            await SecureStore.setItemAsync('user_seed_phrase', phrase);
+          }
+        }
+
         if (phrase) {
           setRecoveryPhrase(phrase);
         }
