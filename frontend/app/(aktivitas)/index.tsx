@@ -22,7 +22,7 @@ interface ActivityItem {
   doctorName: string;
   institution: string;
   specialization: string;
-  status: 'approved' | 'pending' | 'rejected';
+  status: 'approved' | 'pending' | 'rejected' | 'expired';
   date: string;
   time: string;
   type: string;
@@ -60,9 +60,12 @@ export default function RiwayatAktivitasScreen() {
         let deniedCount = 0;
 
         const formatted: ActivityItem[] = records.map((doc: any) => {
-          if (doc.consent_status === 'approved') activeCount++;
-          else if (doc.consent_status === 'pending') pendingCount++;
-          else if (doc.consent_status === 'rejected') deniedCount++;
+          const isExpired = doc.consent_expires_at ? new Date(doc.consent_expires_at) < new Date() : false;
+          const status = isExpired ? 'expired' : (doc.consent_status || 'pending');
+
+          if (status === 'approved') activeCount++;
+          else if (status === 'pending') pendingCount++;
+          else if (status === 'rejected' || status === 'expired') deniedCount++;
 
           const dateObj = doc.created_at ? new Date(doc.created_at) : new Date();
           const typeMap: Record<string, string> = {
@@ -76,7 +79,7 @@ export default function RiwayatAktivitasScreen() {
             doctorName: doc.staff?.name || 'Dr. Agung Setya',
             institution: doc.staff?.institution || 'RS Semen Gresik',
             specialization: doc.staff?.specialization || 'Dokter Umum',
-            status: doc.consent_status || 'pending',
+            status: status as any,
             date: dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
             time: dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
             type: typeMap[doc.record_type] || 'Rekam Medis'
@@ -256,7 +259,7 @@ export default function RiwayatAktivitasScreen() {
                       tw`text-[10px] font-bold`, 
                       item.status === 'approved' ? tw`text-[#22c55e]` : item.status === 'pending' ? tw`text-[#ff9f1c]` : tw`text-[#ef4444]`
                     ]}>
-                      {item.status === 'approved' ? 'DITERIMA' : item.status === 'pending' ? 'PENDING' : 'DITOLAK'}
+                      {item.status === 'approved' ? 'DITERIMA' : item.status === 'pending' ? 'PENDING' : item.status === 'expired' ? 'KEDALUWARSA' : 'DITOLAK'}
                     </Text>
                   </View>
                 </View>
@@ -308,7 +311,7 @@ export default function RiwayatAktivitasScreen() {
                       </TouchableOpacity>
                     )}
 
-                    {item.status === 'rejected' && (
+                    {(item.status === 'rejected' || item.status === 'expired') && (
                       <TouchableOpacity
                         style={tw`bg-gray-100 py-3.5 rounded-2xl flex-row items-center justify-center`}
                         onPress={() => handleUpdateConsent(item.id, 'approved')}
