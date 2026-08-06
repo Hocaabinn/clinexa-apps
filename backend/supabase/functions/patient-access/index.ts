@@ -210,12 +210,30 @@ serve(async (req) => {
       assertWallet(patient, body.wallet_address ? String(body.wallet_address) : undefined);
       const recordId = String(body.record_id ?? '');
       const consentStatus = String(body.consent_status ?? '');
+      const durationType = String(body.consent_duration_type ?? 'manual');
       if (!recordId || !['approved', 'rejected', 'pending'].includes(consentStatus)) {
         throw new Error('Record ID dan Status Persetujuan valid wajib diisi.');
       }
+
+      let expiresAt: string | null = null;
+      if (consentStatus === 'approved') {
+        const now = new Date();
+        if (durationType === '60_min') {
+          expiresAt = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+        } else if (durationType === 'konsultasi') {
+          expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        } else if (durationType === 'rawat_inap') {
+          expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        }
+      }
+
       const { data, error } = await supabase
         .from('medical_records')
-        .update({ consent_status: consentStatus })
+        .update({ 
+          consent_status: consentStatus,
+          consent_duration_type: durationType,
+          consent_expires_at: expiresAt
+        })
         .eq('id', recordId)
         .eq('patient_id', patient.id)
         .select('*, staff:staff_id(name, institution, specialization)');
@@ -225,6 +243,43 @@ serve(async (req) => {
         throw new Error('Rekam medis tidak ditemukan atau tidak cocok dengan data pasien.');
       }
       return json({ record: data[0] });
+    }
+
+    if (action === 'approve_staff_access') {
+      const patient = await findPatientByNik(nik);
+      if (!patient) return json({ error: 'Data pasien tidak ditemukan.' }, 404);
+      assertWallet(patient, body.wallet_address ? String(body.wallet_address) : undefined);
+      
+      const staffId = String(body.staff_id ?? '');
+      const durationType = String(body.consent_duration_type ?? 'manual');
+      if (!staffId) {
+        throw new Error('Staff ID wajib diisi.');
+      }
+
+      const now = new Date();
+      let expiresAt: string | null = null;
+      if (durationType === '60_min') {
+        expiresAt = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+      } else if (durationType === 'konsultasi') {
+        expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+      } else if (durationType === 'rawat_inap') {
+        expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      }
+
+      const { data, error } = await supabase
+        .from('medical_records')
+        .update({ 
+          consent_status: 'approved',
+          consent_duration_type: durationType,
+          consent_expires_at: expiresAt
+        })
+        .eq('patient_id', patient.id)
+        .eq('staff_id', staffId)
+        .eq('consent_status', 'pending')
+        .select('*, staff:staff_id(name, institution, specialization)');
+
+      if (error) throw error;
+      return json({ records: data ?? [] });
     }
 
     return json({ error: 'Unknown action' }, 400);
