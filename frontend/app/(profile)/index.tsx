@@ -670,11 +670,11 @@ export default function ProfileScreen() {
 
               {/* Seed Phrase Grid */}
               <Text style={tw`text-gray-400 text-[10px] font-bold tracking-wider mb-3`}>12-WORD RECOVERY PHRASE</Text>
-              <View style={tw`flex-row flex-wrap gap-2 mb-6`}>
+              <View style={tw`flex-row flex-wrap justify-between mb-6`}>
                 {recoveryPhrase.split(' ').map((word, index) => (
-                  <View key={index} style={tw`bg-gray-100/70 border border-gray-200/50 px-3 py-2 rounded-xl flex-row items-center`}>
-                    <Text style={tw`text-gray-400 text-[10px] font-bold mr-1.5`}>{index + 1}</Text>
-                    <Text style={tw`text-gray-700 font-bold text-xs`}>{word}</Text>
+                  <View key={index} style={tw`bg-[#f8fafc] border border-[#e2e8f0] w-[31%] py-2.5 rounded-xl flex-row items-center justify-center mb-2`}>
+                    <Text style={tw`text-[#94a3b8] text-[10px] font-bold mr-1.5`}>{String(index + 1).padStart(2, '0')}</Text>
+                    <Text style={tw`text-[#0b4771] font-bold text-xs`}>{word}</Text>
                   </View>
                 ))}
               </View>
