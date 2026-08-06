@@ -10,7 +10,7 @@ import { Buffer } from 'buffer';
 import * as bip39 from 'bip39';
 import { supabase } from '../../lib/supabase';
 import { callPatientAccess } from '../../lib/patient-api';
-import { patientDataCache } from '../../constants/auth';
+import { patientDataCache, medicalRecordsCache } from '../../constants/auth';
 
 global.Buffer = global.Buffer || Buffer;
 
@@ -73,7 +73,22 @@ export default function DashboardIndex() {
 
   const fetchMedicalVisits = async (patientId: string) => {
     try {
-      setLoadingVisits(true);
+      // 1. Check cache first to display instantly
+      const cached = medicalRecordsCache.get();
+      if (cached && cached.length > 0) {
+        const formattedVisits = cached.map((doc: any) => ({
+          id: String(doc.id),
+          rs: doc.rs || doc.staff?.institution || 'Fasilitas Kesehatan',
+          doctor: doc.doctor || doc.staff?.name || 'Dokter',
+          title: doc.title || doc.diagnosis || doc.chief_complaint || doc.lab_type || 'Pemeriksaan Medis',
+          date: doc.date || (doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : ''),
+        }));
+        setVisits(formattedVisits);
+        setLoadingVisits(false);
+      } else {
+        setLoadingVisits(true);
+      }
+
       const nik = await SecureStore.getItemAsync('user_nik');
       const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
       if (!nik) return;
@@ -92,12 +107,34 @@ export default function DashboardIndex() {
           date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : (doc.date || ''),
         }));
         setVisits(formattedVisits);
+
+        // Update global cache so the RME screen also gets it instantly
+        const formattedRecords = records.map((doc: any) => {
+          const typeMap: Record<string, 'Pemeriksaan' | 'Lab' | 'Resep'> = {
+            pemeriksaan: 'Pemeriksaan',
+            laboratorium: 'Lab',
+            resep: 'Resep',
+          };
+          return {
+            id: String(doc.id),
+            title: doc.diagnosis || doc.chief_complaint || doc.lab_type || 'Pemeriksaan Medis',
+            date: doc.created_at ? new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Terbaru',
+            relativeDate: 'Terbaru',
+            description: doc.notes || doc.lab_notes || doc.prescription_notes || 'Hasil pemeriksaan dan catatan medis pasien.',
+            hash: doc.blockchain_hash || '0x' + doc.id.replace(/-/g, '').substring(0, 20),
+            type: typeMap[doc.record_type] || 'Pemeriksaan',
+            imageUrl: 'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?w=600&auto=format&fit=crop&q=80',
+          };
+        });
+        medicalRecordsCache.set(formattedRecords);
       } else {
         setVisits(defaultVisits);
       }
     } catch (err) {
       console.error("Error fetching medical visits:", err);
-      setVisits(defaultVisits);
+      if (!medicalRecordsCache.get()) {
+        setVisits(defaultVisits);
+      }
     } finally {
       setLoadingVisits(false);
     }

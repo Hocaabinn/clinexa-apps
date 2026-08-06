@@ -22,7 +22,7 @@ import { Buffer } from 'buffer';
 import * as bip39 from 'bip39';
 import { supabase } from '../../lib/supabase';
 import { callPatientAccess } from '../../lib/patient-api';
-import { patientDataCache } from '../../constants/auth';
+import { patientDataCache, medicalRecordsCache } from '../../constants/auth';
 
 global.Buffer = global.Buffer || Buffer;
 
@@ -95,7 +95,8 @@ function RekamMedisScreen() {
     },
   ];
 
-  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>(defaultRecords);
+  const cachedRecs = medicalRecordsCache.get();
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>(cachedRecs || defaultRecords);
 
   const fetchRecords = async (patientId: string) => {
     try {
@@ -127,8 +128,10 @@ function RekamMedisScreen() {
           };
         });
         setMedicalRecords(formatted);
+        medicalRecordsCache.set(formatted);
       } else {
         setMedicalRecords(defaultRecords);
+        medicalRecordsCache.set(null);
       }
     } catch (err) {
       console.error('Error fetching medical records:', err);
@@ -138,6 +141,13 @@ function RekamMedisScreen() {
   useEffect(() => {
     const loadUserData = async () => {
       try {
+        const cached = patientDataCache.get() as any;
+        if (cached) {
+          setPatientData(cached);
+          setLoading(false);
+          fetchRecords(cached.id);
+        }
+
         const nik = await SecureStore.getItemAsync('user_nik');
         if (nik) {
           const walletAddress = await SecureStore.getItemAsync('user_wallet_address');

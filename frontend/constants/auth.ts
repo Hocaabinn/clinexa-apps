@@ -11,6 +11,7 @@ interface PatientData {
 }
 
 let cachedPatientData: PatientData | null = null;
+let cachedMedicalRecords: any[] | null = null;
 
 export const patientDataCache = {
   get: () => cachedPatientData,
@@ -19,6 +20,16 @@ export const patientDataCache = {
   },
   clear: () => {
     cachedPatientData = null;
+  }
+};
+
+export const medicalRecordsCache = {
+  get: () => cachedMedicalRecords,
+  set: (data: any[] | null) => {
+    cachedMedicalRecords = data;
+  },
+  clear: () => {
+    cachedMedicalRecords = null;
   }
 };
 
@@ -31,6 +42,7 @@ export const authState = {
   logout: () => {
     currentLoginState = false;
     patientDataCache.clear();
+    medicalRecordsCache.clear();
     subscribers.forEach(cb => cb(false));
   },
   subscribe: (cb: (state: boolean) => void) => {

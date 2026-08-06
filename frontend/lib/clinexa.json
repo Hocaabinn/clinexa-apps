@@ -1,0 +1,764 @@
+{
+  "address": "8cBS6FjQzRjpunaSFDvjvP9S2WhWH4GSNJFbkCcWhiGS",
+  "metadata": {
+    "name": "clinexa",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Clinexa on-chain consent, document hash, and audit registry"
+  },
+  "instructions": [
+    {
+      "name": "approve_consent_request",
+      "discriminator": [
+        219,
+        96,
+        58,
+        1,
+        177,
+        31,
+        51,
+        89
+      ],
+      "accounts": [
+        {
+          "name": "consent",
+          "writable": true
+        },
+        {
+          "name": "patient",
+          "relations": [
+            "consent"
+          ]
+        },
+        {
+          "name": "patient_authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "access_duration_seconds",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "expire_consent_request",
+      "discriminator": [
+        77,
+        229,
+        31,
+        65,
+        250,
+        207,
+        27,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "consent",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_config",
+      "docs": [
+        "Dipanggil sekali oleh admin (deployer) untuk inisialisasi config program."
+      ],
+      "discriminator": [
+        208,
+        127,
+        21,
+        1,
+        194,
+        190,
+        196,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "log_record_access",
+      "discriminator": [
+        77,
+        40,
+        60,
+        231,
+        59,
+        7,
+        21,
+        247
+      ],
+      "accounts": [
+        {
+          "name": "consent",
+          "writable": true
+        },
+        {
+          "name": "doctor",
+          "docs": [
+            "PDA registry dokter, dicocokkan ke consent.doctor (bukan wallet-nya langsung)"
+          ],
+          "relations": [
+            "consent"
+          ]
+        },
+        {
+          "name": "access_log",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  99,
+                  101,
+                  115,
+                  115,
+                  95,
+                  108,
+                  111,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "consent"
+              },
+              {
+                "kind": "account",
+                "path": "consent.access_count",
+                "account": "ConsentRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "doctor_authority",
+          "docs": [
+            "Wallet asli dokter yang sign & bayar rent, harus cocok dengan doctor.authority"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "record_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "blob_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "register_doctor",
+      "docs": [
+        "Admin RS (backend) mendaftarkan dokter baru + keypair custodial-nya.",
+        "doctor_authority = pubkey wallet Solana yang di-custody backend RS untuk dokter ini",
+        "(dokter sendiri login web pakai password+MFA, bukan seed phrase)."
+      ],
+      "discriminator": [
+        181,
+        67,
+        216,
+        215,
+        132,
+        240,
+        147,
+        125
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "doctor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  111,
+                  99,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "doctor_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_doctor_id",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        },
+        {
+          "name": "doctor_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "register_patient",
+      "docs": [
+        "Pasien self-register pakai wallet yang diturunkan dari seed phrase 12 kata mereka sendiri."
+      ],
+      "discriminator": [
+        28,
+        119,
+        184,
+        101,
+        140,
+        117,
+        47,
+        183
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "patient",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  116,
+                  105,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "patient_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_patient_id",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "reject_consent_request",
+      "discriminator": [
+        203,
+        37,
+        31,
+        93,
+        172,
+        32,
+        5,
+        229
+      ],
+      "accounts": [
+        {
+          "name": "consent",
+          "writable": true
+        },
+        {
+          "name": "patient",
+          "relations": [
+            "consent"
+          ]
+        },
+        {
+          "name": "patient_authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "request_consent",
+      "discriminator": [
+        69,
+        96,
+        236,
+        1,
+        115,
+        121,
+        60,
+        114
+      ],
+      "accounts": [
+        {
+          "name": "consent",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  115,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "consent_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "patient"
+        },
+        {
+          "name": "doctor"
+        },
+        {
+          "name": "requester",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "consent_id",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        },
+        {
+          "name": "scope_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "respond_within_seconds",
+          "type": "i64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "AccessLog",
+      "discriminator": [
+        99,
+        147,
+        234,
+        225,
+        53,
+        121,
+        161,
+        122
+      ]
+    },
+    {
+      "name": "Config",
+      "discriminator": [
+        155,
+        12,
+        170,
+        224,
+        30,
+        250,
+        204,
+        130
+      ]
+    },
+    {
+      "name": "ConsentRecord",
+      "discriminator": [
+        117,
+        4,
+        35,
+        61,
+        39,
+        142,
+        218,
+        217
+      ]
+    },
+    {
+      "name": "DoctorRegistry",
+      "discriminator": [
+        10,
+        81,
+        132,
+        109,
+        227,
+        95,
+        151,
+        230
+      ]
+    },
+    {
+      "name": "PatientRegistry",
+      "discriminator": [
+        106,
+        180,
+        63,
+        26,
+        65,
+        133,
+        234,
+        226
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "UnauthorizedAdmin",
+      "msg": "Admin tidak valid."
+    },
+    {
+      "code": 6001,
+      "name": "UnauthorizedDoctor",
+      "msg": "Dokter tidak memiliki otoritas valid."
+    },
+    {
+      "code": 6002,
+      "name": "InvalidExpiration",
+      "msg": "Waktu kedaluwarsa tidak valid."
+    },
+    {
+      "code": 6003,
+      "name": "UnauthorizedPatient",
+      "msg": "Pasien tidak memiliki otoritas valid."
+    },
+    {
+      "code": 6004,
+      "name": "ConsentPatientMismatch",
+      "msg": "Data pasien pada request ini tidak cocok."
+    },
+    {
+      "code": 6005,
+      "name": "ConsentNotPending",
+      "msg": "Status request tidak berada dalam kondisi Pending."
+    },
+    {
+      "code": 6006,
+      "name": "ConsentRequestExpired",
+      "msg": "Batas waktu respons pasien (5 menit) sudah habis."
+    },
+    {
+      "code": 6007,
+      "name": "ConsentRequestNotExpiredYet",
+      "msg": "Batas waktu respons belum terlewati."
+    },
+    {
+      "code": 6008,
+      "name": "ConsentNotApproved",
+      "msg": "Consent belum berstatus Approved."
+    },
+    {
+      "code": 6009,
+      "name": "AccessWindowExpired",
+      "msg": "Jendela waktu akses rekam medis sudah habis."
+    },
+    {
+      "code": 6010,
+      "name": "AccessCountOverflow",
+      "msg": "Jumlah akses melebihi batas maksimum u32."
+    }
+  ],
+  "types": [
+    {
+      "name": "AccessLog",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "consent",
+            "type": "pubkey"
+          },
+          {
+            "name": "doctor",
+            "type": "pubkey"
+          },
+          {
+            "name": "patient",
+            "type": "pubkey"
+          },
+          {
+            "name": "record_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "blob_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "accessed_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConsentRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "consent_id",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "patient",
+            "type": "pubkey"
+          },
+          {
+            "name": "doctor",
+            "type": "pubkey"
+          },
+          {
+            "name": "scope_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "ConsentStatus"
+              }
+            }
+          },
+          {
+            "name": "expires_at",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          },
+          {
+            "name": "access_count",
+            "type": "u32"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConsentStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "Approved"
+          },
+          {
+            "name": "Rejected"
+          },
+          {
+            "name": "Expired"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DoctorRegistry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PatientRegistry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}
