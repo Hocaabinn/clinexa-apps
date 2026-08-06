@@ -68,7 +68,8 @@ export default function RekamMedisDetail() {
   }
 
   const patient = record.patients || {};
-  const isGranted = record.consent_status === 'approved';
+  const isExpired = record.consent_expires_at ? new Date(record.consent_expires_at) < new Date() : false;
+  const isGranted = record.consent_status === 'approved' && !isExpired;
   const avatarUrl = patient.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${patient.name || 'User'}&backgroundColor=0b4771,1ba39a`;
 
   return (
@@ -86,7 +87,7 @@ export default function RekamMedisDetail() {
             ) : (
               <View style={tw`bg-[#fdf2f2] border border-[#ef4444]/20 px-4 py-2 rounded-xl flex-row items-center`}>
                 <Ionicons name="alert-circle" size={16} color="#ef4444" />
-                <Text style={tw`text-[#ef4444] font-bold text-sm ml-2`}>Status: {record.consent_status === 'rejected' ? 'Akses Ditolak' : 'Menunggu Izin'}</Text>
+                <Text style={tw`text-[#ef4444] font-bold text-sm ml-2`}>Status: {isExpired ? 'Akses Kedaluwarsa' : record.consent_status === 'rejected' ? 'Akses Ditolak' : 'Menunggu Izin'}</Text>
               </View>
             )}
           </View>
