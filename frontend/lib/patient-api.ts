@@ -8,7 +8,8 @@ type PatientAction =
   | 'update_patient'
   | 'list_records'
   | 'get_record'
-  | 'update_consent';
+  | 'update_consent'
+  | 'approve_staff_access';
 
 type PatientPayload = Record<string, unknown>;
 
