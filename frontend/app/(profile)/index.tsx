@@ -654,8 +654,9 @@ export default function ProfileScreen() {
                       ))}
                     </ScrollView>
                   </View>
+
                   {/* Bulan */}
-                  <View style={tw`flex-[1.5] items-center`}>
+                  <View style={tw`flex-1 items-center`}>
                     <Text style={tw`text-[10px] font-bold text-gray-400 mb-1`}>Bulan</Text>
                     <ScrollView nestedScrollEnabled={true} showsVerticalScrollIndicator={false} style={tw`w-full`}>
                       {MONTHS.map((m) => (

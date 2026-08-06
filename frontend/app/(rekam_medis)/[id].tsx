@@ -404,7 +404,7 @@ export default function RecordDetailScreen() {
       <StatusBar barStyle="light-content" backgroundColor="#1ba098" />
 
       {/* Hero Header Area */}
-      <View style={[tw`bg-[#1ba098] rounded-b-[40px] pb-28 px-6 relative`, { paddingTop: Platform.OS === 'android' ? 50 : 20 }]}>
+      <View style={[tw`bg-[#1ba098] rounded-b-[40px] pb-28 px-6 relative`, { paddingTop: Platform.OS === 'android' ? 50 : 48 }]}>
         <View style={tw`absolute -top-20 -right-16 w-60 h-60 bg-white/10 rounded-full`} />
         <View style={tw`absolute -bottom-10 -left-10 w-40 h-40 bg-black/5 rounded-full`} />
 
