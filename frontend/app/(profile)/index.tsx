@@ -656,41 +656,43 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
 
-              <Text style={tw`text-gray-500 text-xs leading-relaxed mb-6`}>
-                Gunakan Recovery Phrase (12 kata kunci) atau scan QR Code di bawah untuk memulihkan akses akun Anda pada perangkat baru.
-              </Text>
+              <ScrollView showsVerticalScrollIndicator={false} style={tw`w-full`} contentContainerStyle={tw`pb-4`}>
+                <Text style={tw`text-gray-500 text-xs leading-relaxed mb-6`}>
+                  Gunakan Recovery Phrase (12 kata kunci) atau scan QR Code di bawah untuk memulihkan akses akun Anda pada perangkat baru.
+                </Text>
 
-              {/* QR Code Container */}
-              <View style={tw`items-center justify-center bg-gray-50 p-4 rounded-3xl border border-gray-100 mb-6`}>
-                <Image
-                  source={{ uri: `https://quickchart.io/qr?text=${encodeURIComponent(recoveryPhrase)}&size=180&margin=1` }}
-                  style={{ width: 180, height: 180 }}
-                />
-              </View>
+                {/* QR Code Container */}
+                <View style={tw`items-center justify-center bg-gray-50 p-4 rounded-3xl border border-gray-100 mb-6`}>
+                  <Image
+                    source={{ uri: `https://quickchart.io/qr?text=${encodeURIComponent(recoveryPhrase)}&size=180&margin=1` }}
+                    style={{ width: 180, height: 180 }}
+                  />
+                </View>
 
-              {/* Seed Phrase Grid */}
-              <Text style={tw`text-gray-400 text-[10px] font-bold tracking-wider mb-3`}>12-WORD RECOVERY PHRASE</Text>
-              <View style={tw`flex-row flex-wrap justify-between mb-6`}>
-                {recoveryPhrase.split(' ').map((word, index) => (
-                  <View key={index} style={tw`bg-[#f8fafc] border border-[#e2e8f0] w-[31%] py-2.5 rounded-xl flex-row items-center justify-center mb-2`}>
-                    <Text style={tw`text-[#94a3b8] text-[10px] font-bold mr-1.5`}>{String(index + 1).padStart(2, '0')}</Text>
-                    <Text style={tw`text-[#0b4771] font-bold text-xs`}>{word}</Text>
-                  </View>
-                ))}
-              </View>
+                {/* Seed Phrase Grid */}
+                <Text style={tw`text-gray-400 text-[10px] font-bold tracking-wider mb-3`}>12-WORD RECOVERY PHRASE</Text>
+                <View style={tw`flex-row flex-wrap justify-between mb-6`}>
+                  {recoveryPhrase.split(' ').map((word, index) => (
+                    <View key={index} style={tw`bg-[#f8fafc] border border-[#e2e8f0] w-[31%] py-2.5 rounded-xl flex-row items-center justify-center mb-2`}>
+                      <Text style={tw`text-[#94a3b8] text-[10px] font-bold mr-1.5`}>{String(index + 1).padStart(2, '0')}</Text>
+                      <Text style={tw`text-[#0b4771] font-bold text-xs`}>{word}</Text>
+                    </View>
+                  ))}
+                </View>
 
-              {/* Copy Button */}
-              <TouchableOpacity
-                onPress={async () => {
-                  await Clipboard.setStringAsync(recoveryPhrase);
-                  Alert.alert('Tersalin!', 'Recovery phrase telah disalin ke clipboard.');
-                }}
-                style={tw`bg-[#2ea89c] rounded-2xl py-4 flex-row justify-center items-center`}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="copy-outline" size={18} color="white" style={tw`mr-2`} />
-                <Text style={tw`text-white font-extrabold text-sm`}>Salin Recovery Phrase</Text>
-              </TouchableOpacity>
+                {/* Copy Button */}
+                <TouchableOpacity
+                  onPress={async () => {
+                    await Clipboard.setStringAsync(recoveryPhrase);
+                    Alert.alert('Tersalin!', 'Recovery phrase telah disalin ke clipboard.');
+                  }}
+                  style={tw`bg-[#2ea89c] rounded-2xl py-4 flex-row justify-center items-center`}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="copy-outline" size={18} color="white" style={tw`mr-2`} />
+                  <Text style={tw`text-white font-extrabold text-sm`}>Salin Recovery Phrase</Text>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
           </View>
         </Modal>
