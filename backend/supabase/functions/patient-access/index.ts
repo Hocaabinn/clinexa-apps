@@ -42,8 +42,8 @@ function normalizeNik(nik: unknown) {
 }
 
 function assertNik(nik: string) {
-  if (!/^\d{16}$/.test(nik)) {
-    throw new Error('NIK harus terdiri dari 16 digit angka.');
+  if (!/^\d{9,16}$/.test(nik)) {
+    throw new Error('Nomor WA atau NIK harus terdiri dari 9-16 digit angka.');
   }
 }
 
@@ -79,7 +79,10 @@ serve(async (req) => {
     const action = String(body.action ?? '');
     const nik = normalizeNik(body.nik);
 
-    if (['check_nik', 'login_patient', 'register_patient', 'get_patient', 'list_records', 'get_record', 'update_consent'].includes(action)) {
+    if (['check_nik', 'register_patient', 'get_patient', 'list_records', 'get_record', 'update_consent'].includes(action)) {
+      assertNik(nik);
+    }
+    if (action === 'login_patient' && !body.wallet_address) {
       assertNik(nik);
     }
 
@@ -89,15 +92,29 @@ serve(async (req) => {
     }
 
     if (action === 'login_patient') {
-      const patient = await findPatientByNik(nik);
-      if (!patient) return json({ error: 'NIK tidak ditemukan atau tidak terdaftar sebagai pasien.' }, 404);
-
-      if (body.wallet_address) {
-        assertWallet(patient, String(body.wallet_address));
+      let patient = null;
+      if (nik) {
+        patient = await findPatientByNik(nik);
+        if (!patient) return json({ error: 'Nomor WA tidak ditemukan atau tidak terdaftar sebagai pasien.' }, 404);
+        if (body.wallet_address) {
+          assertWallet(patient, String(body.wallet_address));
+        }
+      } else if (body.wallet_address) {
+        const { data, error } = await supabase
+          .from('patients')
+          .select('id, nik, name, gender, birth_date, blood_type, wallet_address, avatar_url')
+          .eq('wallet_address', String(body.wallet_address))
+          .maybeSingle();
+        if (error) throw error;
+        patient = data;
+        if (!patient) return json({ error: 'Seedphrase tidak cocok dengan data pasien manapun.' }, 404);
+      } else {
+        return json({ error: 'Nomor WA atau Seedphrase wajib diisi.' }, 400);
       }
 
       return json({
         id: patient.id,
+        nik: patient.nik,
         name: patient.name,
         wallet_address: patient.wallet_address,
       });

@@ -103,8 +103,12 @@ export default function LoginScreen() {
   };
 
   const handleSendOtp = async () => {
-    if (nik.trim().length !== 16) {
-      alert('Silakan masukkan 16 digit NIK Anda.');
+    if (nik.trim() === '') {
+      alert('Silakan masukkan nomor WA terlebih dahulu!');
+      return;
+    }
+    if (nik.trim().length < 9 || nik.trim().length > 15) {
+      alert('Silakan masukkan nomor WA yang valid (9-15 digit).');
       return;
     }
     setIsSendingOtp(true);
@@ -112,7 +116,7 @@ export default function LoginScreen() {
       const patient = await callPatientAccess<{ exists: boolean }>('check_nik', { nik: nik.trim() });
 
       if (!patient.exists) {
-        alert('NIK tidak ditemukan atau tidak terdaftar sebagai pasien.');
+        alert('Nomor WA tidak ditemukan atau tidak terdaftar sebagai pasien.');
         return;
       }
 
@@ -152,8 +156,8 @@ export default function LoginScreen() {
   };
 
   const handleContinue = async () => {
-    if (nik.trim().length !== 16) {
-      alert('Silakan masukkan 16 digit NIK Anda.');
+    if (nik.trim().length < 9 || nik.trim().length > 15) {
+      alert('Silakan masukkan nomor WA yang valid (9-15 digit).');
       return;
     }
     if (!otpSent || !generatedOtp) {
@@ -198,6 +202,38 @@ export default function LoginScreen() {
     }
   };
 
+  const handleSeedPhraseLogin = async () => {
+    if (recoveryPhrase.trim() === '') {
+      alert('Silakan masukkan seed phrase Anda.');
+      return;
+    }
+
+    setIsSendingOtp(true);
+    try {
+      const walletAddressFromPhrase = '0x' + bytesToHex(sha256(Buffer.from(recoveryPhrase.trim(), 'utf-8'))).substring(0, 40);
+
+      const patient = await callPatientAccess<{ id: string; nik: string; name: string; wallet_address?: string }>('login_patient', {
+        wallet_address: walletAddressFromPhrase,
+      });
+
+      // Simpan NIK (nomor WA) dari server ke SecureStore
+      await SecureStore.setItemAsync('user_nik', patient.nik);
+
+      // Simpan seed phrase ke SecureStore
+      await SecureStore.setItemAsync('user_seed_phrase', recoveryPhrase.trim());
+      await SecureStore.setItemAsync('user_wallet_address', walletAddressFromPhrase);
+
+      alert(`Selamat datang kembali, ${patient.name}!`);
+      authState.login();
+      router.replace('/(dashboard)');
+    } catch (err: any) {
+      console.error('Error logging in with seed phrase:', err);
+      alert(err.message || 'Gagal masuk. Pastikan Seedphrase benar.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
   const handleBarCodeScanned = ({ data }: { data: string }) => {
     setScanned(true);
     console.log('Barcode scanned:', data);
@@ -236,7 +272,7 @@ export default function LoginScreen() {
           bounces={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={{ flex: 1 }}>
+          <View>
             {/* Tab Selector - Line Indicator Style matches user request screenshot */}
             <View style={styles.tabContainer}>
               <TouchableOpacity
@@ -262,38 +298,38 @@ export default function LoginScreen() {
 
             {/* Animated Tab Content */}
             <Animated.View style={[styles.contentWrapper, { opacity: fadeAnim }]}>
-              {activeTab === 'recovery' ? (
+               {activeTab === 'recovery' ? (
                 /* --- KATA SANDI PEMULIHAN FORM --- */
                 <View style={styles.tabContent}>
 
                   {/* Header Title with Shield Icon */}
                   <View style={styles.contentHeader}>
-                    <Text style={styles.contentTitle}>Masuk dengan NIK & OTP</Text>
+                    <Text style={styles.contentTitle}>Masukkan nomor WA anda</Text>
                     <Ionicons name="shield-checkmark" size={22} color="#0F172A" style={styles.titleIcon} />
                   </View>
 
                   {/* Description */}
                   <Text style={styles.description}>
                     {!otpSent 
-                      ? "Masukkan 16 digit NIK Anda untuk mengirim kode OTP dan memverifikasi data rekam medis Anda."
-                      : "Verifikasi kode OTP Anda. Anda juga dapat memasukkan seed phrase untuk perlindungan keamanan ekstra."}
+                      ? "Masukkan nomor WA Anda untuk mengirim kode OTP dan memverifikasi data rekam medis Anda."
+                      : "Verifikasi kode OTP Anda."}
                   </Text>
 
-                  {/* NIK Input Field */}
+                  {/* WhatsApp Input Field */}
                   <View style={[
                     styles.inputWrapper,
                     isNikFocused && styles.inputWrapperFocused,
                     otpSent && { opacity: 0.6 }
                   ]}>
-                    <Ionicons name="card-outline" size={20} color={isNikFocused ? "#1BA098" : "#94A3B8"} style={styles.inputIcon} />
+                    <Ionicons name="logo-whatsapp" size={20} color={isNikFocused ? "#1BA098" : "#94A3B8"} style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="Masukkan 16-digit NIK Anda"
+                      placeholder="Masukkan nomor WA"
                       placeholderTextColor="#94A3B8"
                       value={nik}
                       onChangeText={(text) => setNik(text.replace(/[^0-9]/g, ''))}
                       keyboardType="numeric"
-                      maxLength={16}
+                      maxLength={15}
                       editable={!otpSent}
                       onFocus={() => setIsNikFocused(true)}
                       onBlur={() => setIsNikFocused(false)}
@@ -302,16 +338,31 @@ export default function LoginScreen() {
 
                   {/* Kirim OTP Button (Before OTP is sent) */}
                   {!otpSent ? (
-                    <TouchableOpacity
-                      style={[styles.continueButton, { marginTop: 12 }]}
-                      onPress={handleSendOtp}
-                      disabled={isSendingOtp || nik.length !== 16}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.continueButtonText}>
-                        {isSendingOtp ? "Mengirim..." : "Kirim OTP"}
-                      </Text>
-                    </TouchableOpacity>
+                    <>
+                      <TouchableOpacity
+                        style={[styles.continueButton, { marginTop: 12, borderRadius: 12 }]}
+                        onPress={handleSendOtp}
+                        disabled={isSendingOtp || nik.length < 9 || nik.length > 15}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.continueButtonText}>
+                          {isSendingOtp ? "Mengirim..." : "Kirim OTP"}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Register Link */}
+                      <View style={{ alignItems: 'center', marginTop: 16 }}>
+                        <Text style={{ fontSize: 14, color: '#64748B', fontWeight: '500' }}>
+                          Belum Punya Akun?{' '}
+                          <Text
+                            style={{ color: '#1BA098', fontWeight: 'bold', textDecorationLine: 'underline' }}
+                            onPress={() => router.push('/register')}
+                          >
+                            Daftar
+                          </Text>
+                        </Text>
+                      </View>
+                    </>
                   ) : (
                     <>
                       {/* OTP Input Field */}
@@ -333,55 +384,8 @@ export default function LoginScreen() {
                         />
                       </View>
 
-                      {/* Seed Phrase Toggle Button */}
-                      <TouchableOpacity
-                        style={styles.optionalToggleBtn}
-                        onPress={() => setShowSeedPhraseInput(!showSeedPhraseInput)}
-                        activeOpacity={0.8}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <Ionicons name={showSeedPhraseInput ? "chevron-up-circle-outline" : "key-outline"} size={20} color="#1BA098" style={{ marginRight: 8 }} />
-                          <Text style={styles.optionalToggleText}>
-                            Seed Phrase (Opsional)
-                          </Text>
-                        </View>
-                        <Ionicons name={showSeedPhraseInput ? "chevron-up" : "chevron-down"} size={16} color="#64748B" />
-                      </TouchableOpacity>
-
-                      {showSeedPhraseInput && (
-                        <View style={{ width: '100%', marginTop: 4 }}>
-                          <TextInput
-                            style={[
-                              styles.textAreaInput,
-                              isInputFocused && styles.textAreaInputFocused,
-                              { height: 90, marginBottom: 16 }
-                            ]}
-                            placeholder="Masukkan 12 kata kunci pemulihan Anda (Opsional)"
-                            placeholderTextColor="#94A3B8"
-                            multiline={true}
-                            numberOfLines={3}
-                            value={recoveryPhrase}
-                            onChangeText={setRecoveryPhrase}
-                            onFocus={() => setIsInputFocused(true)}
-                            onBlur={() => setIsInputFocused(false)}
-                            textAlignVertical="top"
-                          />
-
-                          {/* Note box */}
-                          <View style={styles.noteBox}>
-                            <View style={styles.noteHeader}>
-                              <Ionicons name="information-circle" size={18} color="#0D9488" />
-                              <Text style={styles.noteTitle}>Peringatan Keamanan</Text>
-                            </View>
-                            <Text style={styles.noteText}>
-                              Jika Anda masih menyimpan seed phrase di awal, harap masukkan demi keamanan data Anda.
-                            </Text>
-                          </View>
-                        </View>
-                      )}
-
                       {/* Countdown & Resend Button */}
-                      <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                      <View style={{ alignItems: 'center', marginBottom: 20, marginTop: 12 }}>
                         {countdown > 0 ? (
                           <Text style={styles.resendText}>Kirim ulang OTP dalam {countdown} detik</Text>
                         ) : (
@@ -417,8 +421,28 @@ export default function LoginScreen() {
 
                   {/* Description */}
                   <Text style={styles.description}>
-                    Pindai kode QR dari perangkat Anda yang lain untuk masuk secara instan dan aman tanpa perlu mengetik kata sandi pemulihan.
+                    Pindai kode QR dari perangkat Anda yang lain untuk masuk secara instan, atau masukkan seed phrase di bawah ini.
                   </Text>
+
+                  {/* Reminder Box */}
+                  <View style={[
+                    styles.noteBox, 
+                    { 
+                      marginTop: -12, 
+                      marginBottom: 20, 
+                      backgroundColor: '#FFF7ED', 
+                      borderColor: '#FFEDD5', 
+                      borderWidth: 1.5 
+                    }
+                  ]}>
+                    <View style={styles.noteHeader}>
+                      <Ionicons name="information-circle" size={18} color="#EA580C" />
+                      <Text style={[styles.noteTitle, { color: '#C2410C' }]}>Petunjuk Masuk</Text>
+                    </View>
+                    <Text style={[styles.noteText, { color: '#9A3412' }]}>
+                      Scan kode QR di atas atau gunakan Seedphrase di bawah ini.
+                    </Text>
+                  </View>
 
                   {/* Modern QR Scan Area using expo-camera */}
                   <View style={styles.qrScanBoxContainer}>
@@ -471,6 +495,47 @@ export default function LoginScreen() {
                       </Text>
                     )}
                   </View>
+
+                  {/* Separator */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 24, overflow: 'hidden' }}>
+                    <Text style={{ flex: 1, color: '#CBD5E1', fontSize: 10 }} numberOfLines={1} ellipsizeMode="clip">
+                      --------------------------------------------------
+                    </Text>
+                    <Text style={{ marginHorizontal: 12, color: '#64748B', fontSize: 13, fontWeight: '600' }}>ATAU MASUK DENGAN SEEDPHRASE</Text>
+                    <Text style={{ flex: 1, color: '#CBD5E1', fontSize: 10 }} numberOfLines={1} ellipsizeMode="clip">
+                      --------------------------------------------------
+                    </Text>
+                  </View>
+
+                  {/* Seed Phrase Input Field */}
+                  <View style={{ width: '100%', marginBottom: 16 }}>
+                    <TextInput
+                      style={[
+                        styles.textAreaInput,
+                        isInputFocused && styles.textAreaInputFocused,
+                        { height: 90 }
+                      ]}
+                      placeholder="Masukkan 12 kata kunci pemulihan Anda (Seedphrase)"
+                      placeholderTextColor="#94A3B8"
+                      multiline={true}
+                      numberOfLines={3}
+                      value={recoveryPhrase}
+                      onChangeText={setRecoveryPhrase}
+                      onFocus={() => setIsInputFocused(true)}
+                      onBlur={() => setIsInputFocused(false)}
+                      textAlignVertical="top"
+                    />
+                  </View>
+
+                  {/* Masuk Sekarang Button */}
+                  <TouchableOpacity
+                    style={[styles.continueButton, { backgroundColor: '#0D9488', marginBottom: 20, borderRadius: 12 }]}
+                    onPress={handleSeedPhraseLogin}
+                    disabled={isSendingOtp || recoveryPhrase.trim() === ''}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.continueButtonText}>Masuk Sekarang</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </Animated.View>
@@ -545,10 +610,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   contentWrapper: {
-    flex: 1,
+    // flex: 1 removed to allow normal scrolling expansion
   },
   tabContent: {
-    flex: 1,
+    // flex: 1 removed to allow normal scrolling expansion
   },
   contentHeader: {
     flexDirection: 'row',
