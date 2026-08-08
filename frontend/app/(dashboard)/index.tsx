@@ -261,7 +261,10 @@ export default function DashboardIndex() {
                 )}
               </View>
             </View>
-            <TouchableOpacity style={tw`bg-white w-11 h-11 rounded-full items-center justify-center shadow-sm`}>
+            <TouchableOpacity 
+              onPress={() => router.push('/test-notification')}
+              style={tw`bg-white w-11 h-11 rounded-full items-center justify-center shadow-sm`}
+            >
               <Ionicons name="notifications-outline" size={22} color="#2ea89c" />
             </TouchableOpacity>
           </View>

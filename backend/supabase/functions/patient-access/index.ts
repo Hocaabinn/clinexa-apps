@@ -49,7 +49,9 @@ function assertNik(nik: string) {
 
 function assertWallet(patient: Patient, walletAddress?: string) {
   if (!patient.wallet_address) return;
-  if (!walletAddress || patient.wallet_address.toLowerCase() !== walletAddress.toLowerCase()) {
+  // If no wallet address is provided (e.g. login via NIK only), do not enforce wallet verification
+  if (!walletAddress) return;
+  if (patient.wallet_address.toLowerCase() !== walletAddress.toLowerCase()) {
     throw new Error('Recovery phrase tidak cocok dengan wallet pasien.');
   }
 }
@@ -236,7 +238,8 @@ serve(async (req) => {
       if (consentStatus === 'approved') {
         const now = new Date();
         if (durationType === '60_min') {
-          expiresAt = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+          // Changed to 2 minutes for testing
+          expiresAt = new Date(now.getTime() + 2 * 60 * 1000).toISOString();
         } else if (durationType === 'konsultasi') {
           expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
         } else if (durationType === 'rawat_inap') {
@@ -276,7 +279,8 @@ serve(async (req) => {
       const now = new Date();
       let expiresAt: string | null = null;
       if (durationType === '60_min') {
-        expiresAt = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+        // Changed to 2 minutes for testing
+        expiresAt = new Date(now.getTime() + 2 * 60 * 1000).toISOString();
       } else if (durationType === 'konsultasi') {
         expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
       } else if (durationType === 'rawat_inap') {

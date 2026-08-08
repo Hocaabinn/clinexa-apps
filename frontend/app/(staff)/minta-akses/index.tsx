@@ -10,6 +10,8 @@ export default function RequestAccessScreen() {
     const [requestCode, setRequestCode] = useState('');
     const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
     const [copied, setCopied] = useState(false);
+    const [showQr, setShowQr] = useState(false);
+    const [selectedDuration, setSelectedDuration] = useState('60_min'); // Default to 60 Minutes
 
     // Generate random request code with stable reference
     const generateNewCode = useCallback(() => {
@@ -51,7 +53,7 @@ export default function RequestAccessScreen() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    // Construct the scannable QR payload containing doctor details
+    // Construct the scannable QR payload containing doctor details and duration
     const qrPayload = useMemo(() => {
         if (!requestCode) return '';
         return JSON.stringify({
@@ -60,9 +62,10 @@ export default function RequestAccessScreen() {
             name: staffProfile?.name || 'Dr. Agung Setya',
             institution: staffProfile?.institution || 'RS Semen Gresik',
             specialization: staffProfile?.specialization || 'Dokter Umum',
-            code: requestCode
+            code: requestCode,
+            consent_duration_type: selectedDuration
         });
-    }, [requestCode, staffProfile]);
+    }, [requestCode, staffProfile, selectedDuration]);
 
     const renderedQRCode = useMemo(() => {
         if (!qrPayload) return null;
@@ -94,47 +97,55 @@ export default function RequestAccessScreen() {
                 <View style={[tw`flex-row gap-8`, { flexDirection: Platform.OS === 'web' ? 'row' as const : 'column' as const }]}>
                     {/* Left Column: QR Code Card */}
                     <View style={[tw`bg-white rounded-3xl p-8 items-center border border-[#d8dee8]`, { flex: 1.2 }]}>
-                        {/* QR Code Label */}
-                        <View style={tw`flex-row items-center mb-6`}>
-                            <Ionicons name="qr-code-outline" size={20} color="#1ba39a" />
-                            <Text style={tw`ml-2 text-base font-medium text-[#0b4771]`}>QR Code Akses</Text>
-                        </View>
 
-                        {/* QR Code Visual Area */}
-                        <View style={tw`items-center justify-center bg-white p-5 border border-[#eef1f5] rounded-2xl mb-6`}>
-                            {renderedQRCode}
-                        </View>
-
-                        {/* Code Display Box */}
-                        <View style={tw`flex-row items-center justify-between bg-[#f8fafc] border border-[#d8dee8] rounded-xl px-5 py-4 w-full mb-6`}>
-                            <Text style={tw`text-[#0b4771] text-lg font-bold tracking-wider`}>{requestCode}</Text>
-                            <TouchableOpacity onPress={handleCopy} style={tw`p-1`}>
-                                <Ionicons
-                                    name={copied ? "checkmark-circle-outline" : "copy-outline"}
-                                    size={20}
-                                    color={copied ? "#18d876" : "#1ba39a"}
-                                />
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Timer and Refresh Button */}
-                        <View style={tw`flex-row items-center justify-between w-full border-t border-[#eef1f5] pt-6`}>
-                            <View style={tw`flex-row items-center`}>
-                                <Ionicons name="time-outline" size={20} color="#ff9f1c" />
-                                <View style={tw`ml-2.5`}>
-                                    <Text style={tw`text-[#9aa5b5] text-xs font-light`}>Kadaluarsa dalam</Text>
-                                    <Text style={tw`text-[#ff9f1c] font-semibold text-base`}>{formatTime(timeLeft)}</Text>
-                                </View>
-                            </View>
-
+                        {/* Show QR Code Action Button */}
+                        {!showQr ? (
                             <TouchableOpacity
-                                onPress={generateNewCode}
-                                style={tw`bg-[#1ba39a] flex-row items-center px-4 py-2.5 rounded-xl`}
+                                style={tw`bg-[#1ba39a] py-3.5 px-6 rounded-xl flex-row items-center justify-center w-full mb-4`}
+                                onPress={() => setShowQr(true)}
                             >
-                                <Ionicons name="refresh-outline" size={16} color="white" />
-                                <Text style={tw`text-white text-sm font-medium ml-2`}>Perbarui</Text>
+                                <Ionicons name="qr-code-outline" size={20} color="white" />
+                                <Text style={tw`text-white font-semibold ml-2`}>Tampilkan QR Code</Text>
                             </TouchableOpacity>
-                        </View>
+                        ) : (
+                            <>
+                                {/* QR Code Visual Area */}
+                                <View style={tw`items-center justify-center bg-white p-5 border border-[#eef1f5] rounded-2xl mb-6`}>
+                                    {renderedQRCode}
+                                </View>
+
+                                {/* Code Display Box */}
+                                <View style={tw`flex-row items-center justify-between bg-[#f8fafc] border border-[#d8dee8] rounded-xl px-5 py-4 w-full mb-6`}>
+                                    <Text style={tw`text-[#0b4771] text-lg font-bold tracking-wider`}>{requestCode}</Text>
+                                    <TouchableOpacity onPress={handleCopy} style={tw`p-1`}>
+                                        <Ionicons
+                                            name={copied ? "checkmark-circle-outline" : "copy-outline"}
+                                            size={20}
+                                            color={copied ? "#18d876" : "#1ba39a"}
+                                        />
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* Timer and Refresh Button */}
+                                <View style={tw`flex-row items-center justify-between w-full border-t border-[#eef1f5] pt-6`}>
+                                    <View style={tw`flex-row items-center`}>
+                                        <Ionicons name="time-outline" size={20} color="#ff9f1c" />
+                                        <View style={tw`ml-2.5`}>
+                                            <Text style={tw`text-[#9aa5b5] text-xs font-light`}>Kadaluarsa dalam</Text>
+                                            <Text style={tw`text-[#ff9f1c] font-semibold text-base`}>{formatTime(timeLeft)}</Text>
+                                        </View>
+                                    </View>
+
+                                    <TouchableOpacity
+                                        onPress={generateNewCode}
+                                        style={tw`bg-[#1ba39a] flex-row items-center px-4 py-2.5 rounded-xl`}
+                                    >
+                                        <Ionicons name="refresh-outline" size={16} color="white" />
+                                        <Text style={tw`text-white text-sm font-medium ml-2`}>Perbarui</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </>
+                        )}
                     </View>
 
                     {/* Right Column: Staff Info & Instructions */}

@@ -67,6 +67,7 @@ export default function RootLayout() {
       <Stack.Screen name="(rekam_medis)/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="(aktivitas)/index" options={{ headerShown: false, animation: 'none' }} />
       <Stack.Screen name="(profile)/index" options={{ headerShown: false, animation: 'none' }} />
+      <Stack.Screen name="(profile)/settings" options={{ headerShown: true, title: 'Pengaturan', headerStyle: { backgroundColor: '#2ea89c' }, headerTintColor: '#fff' }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       <Stack.Screen name="+not-found" options={{ headerShown: false }} />
     </Stack>

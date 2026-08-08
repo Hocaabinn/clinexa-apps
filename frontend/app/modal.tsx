@@ -6,6 +6,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { callPatientAccess } from '../lib/patient-api';
+import { supabase } from '../lib/supabase';
+import { scheduleLocalNotification } from '../lib/notifications';
 
 const { width } = Dimensions.get('window');
 const SCAN_BOX_SIZE = 260;
@@ -98,15 +100,58 @@ export default function QRScannerModal() {
       const walletAddress = await SecureStore.getItemAsync('user_wallet_address');
       
       if (!nik) {
-        throw new Error('Data pasien NIK tidak ditemukan. Silakan login kembali.');
+        throw new Error('Data NIK pasien tidak ditemukan. Silakan login kembali.');
       }
 
+      // Use Edge Function 'get_patient' to bypass RLS policies
+      const patient = await callPatientAccess<{ id: string; wallet_address?: string }>('get_patient', {
+        nik: nik.trim(),
+        wallet_address: walletAddress,
+      });
+
+      if (!patient) {
+        throw new Error('Data pasien tidak ditemukan.');
+      }
+
+      if (walletAddress && patient.wallet_address) {
+        if (patient.wallet_address.toLowerCase() !== walletAddress.toLowerCase()) {
+          throw new Error('Kunci pemulihan tidak cocok dengan akun ini.');
+        }
+      }
+
+      const now = new Date();
+      let expiresAt: string | null = null;
+      if (selectedDuration === '60_min') {
+        expiresAt = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+      } else if (selectedDuration === 'konsultasi') {
+        expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+      } else if (selectedDuration === 'rawat_inap') {
+        expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      }
+
+      // Use Edge Function 'approve_staff_access' to bypass RLS policies
       await callPatientAccess('approve_staff_access', {
-        nik,
+        nik: nik.trim(),
         wallet_address: walletAddress,
         staff_id: scannedDoctor.staff_id,
-        consent_duration_type: selectedDuration
+        consent_duration_type: selectedDuration,
       });
+
+      // 1. Kirim notifikasi instan (delay 1 detik) akses diberikan
+      await scheduleLocalNotification(
+        '🔑 Akses Rekam Medis Diberikan',
+        `dr. ${scannedDoctor.name} berhasil diberikan izin untuk membuka rekam medis Anda.`,
+        1
+      );
+
+      // 2. Jika memilih Sekali Akses (2 Menit / 60_min di DB), jadwalkan notifikasi penarikan akses setelah 5 detik untuk pengujian instan
+      if (selectedDuration === '60_min') {
+        await scheduleLocalNotification(
+          '🔒 Akses Rekam Medis Dicabut',
+          `Waktu 2 menit telah habis. Izin akses rekam medis oleh dr. ${scannedDoctor.name} otomatis kedaluwarsa & dicabut.`,
+          5
+        );
+      }
 
       Alert.alert(
         'Akses Berhasil',
@@ -264,8 +309,8 @@ export default function QRScannerModal() {
                   {selectedDuration === '60_min' && <View style={styles.optionRadioInner} />}
                 </View>
                 <View style={styles.optionContent}>
-                  <Text style={styles.optionTitleText}>Sekali Akses (60 Menit)</Text>
-                  <Text style={styles.optionDescText}>Cocok untuk konsultasi sekali waktu saat ini.</Text>
+                  <Text style={styles.optionTitleText}>Sekali Akses (2 Menit)</Text>
+                  <Text style={styles.optionDescText}>Cocok untuk uji coba persetujuan rekam medis.</Text>
                 </View>
               </TouchableOpacity>
 
@@ -283,19 +328,6 @@ export default function QRScannerModal() {
                 </View>
               </TouchableOpacity>
 
-              {/* Option 3: Rawat Inap */}
-              <TouchableOpacity 
-                style={[styles.optionCard, selectedDuration === 'rawat_inap' && styles.optionCardSelected]}
-                onPress={() => setSelectedDuration('rawat_inap')}
-              >
-                <View style={styles.optionRadio}>
-                  {selectedDuration === 'rawat_inap' && <View style={styles.optionRadioInner} />}
-                </View>
-                <View style={styles.optionContent}>
-                  <Text style={styles.optionTitleText}>Selama Rawat Inap (7 Hari)</Text>
-                  <Text style={styles.optionDescText}>Akses otomatis dicabut setelah 7 hari.</Text>
-                </View>
-              </TouchableOpacity>
 
               {/* Option 4: Manual */}
               <TouchableOpacity 
@@ -306,8 +338,8 @@ export default function QRScannerModal() {
                   {selectedDuration === 'manual' && <View style={styles.optionRadioInner} />}
                 </View>
                 <View style={styles.optionContent}>
-                  <Text style={styles.optionTitleText}>Sampai Dicabut Sendiri</Text>
-                  <Text style={styles.optionDescText}>Berlaku terus sampai Anda batalkan dari riwayat.</Text>
+                  <Text style={styles.optionTitleText}>Selama Dirawat / Dicabut Sendiri</Text>
+                  <Text style={styles.optionDescText}>Izin terus aktif selama Anda dirawat inap di RS ini dan dapat dicabut manual kapan saja.</Text>
                 </View>
               </TouchableOpacity>
             </View>

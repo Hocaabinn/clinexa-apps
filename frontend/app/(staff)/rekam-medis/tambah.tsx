@@ -43,6 +43,12 @@ export default function TambahRekamMedis() {
   const [prescriptionItem, setPrescriptionItem] = useState({ name: '', dose: '', freq: '', instructions: '' });
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
 
+  // Admission Type State ('rawat_jalan', 'rawat_inap', 'igd')
+  const [admissionType, setAdmissionType] = useState<'rawat_jalan' | 'rawat_inap' | 'igd'>('rawat_jalan');
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   useEffect(() => {
     fetchPatients();
   }, []);
@@ -51,9 +57,22 @@ export default function TambahRekamMedis() {
     const { data } = await supabase.from('patients').select('id, name');
     if (data) {
       setPatients(data);
-      if (data.length > 0) setSelectedPatientId(data[0].id);
+      if (data.length > 0) {
+        setSelectedPatientId(data[0].id);
+        setSearchQuery(data[0].name);
+      }
     }
   };
+
+  const handleSelectPatient = (patient: Patient) => {
+    setSelectedPatientId(patient.id);
+    setSearchQuery(patient.name);
+    setIsDropdownOpen(false);
+  };
+
+  const filteredPatients = patients.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleSubmit = async () => {
     if (!selectedPatientId) {
@@ -67,6 +86,7 @@ export default function TambahRekamMedis() {
         patient_id: selectedPatientId,
         staff_id: staffProfile?.id,
         record_type: activeTab.toLowerCase(),
+        admission_type: admissionType,
         consent_status: 'pending' // As per requirement, new records need consent
       };
 
@@ -349,19 +369,83 @@ export default function TambahRekamMedis() {
     <ScrollView style={tw`flex-1 bg-[#f4f6f8] px-10 py-8`} contentContainerStyle={tw`pb-20`}>
       <Text style={tw`text-[#0b4771] text-3xl font-semibold mb-2`}>Tambah Rekam Medis Baru</Text>
       
-      <View style={tw`flex-row items-center mb-8 bg-white p-4 rounded-xl shadow-sm border border-[#e2e8f0] max-w-sm`}>
-        <Text style={tw`text-[#64748b] text-base mr-2`}>Pasien: </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={tw`flex-row`}>
-          {patients.map(p => (
-            <TouchableOpacity 
-              key={p.id} 
-              style={tw`px-3 py-1.5 rounded-lg mr-2 ${selectedPatientId === p.id ? 'bg-[#1ba39a]' : 'bg-gray-100'}`}
-              onPress={() => setSelectedPatientId(p.id)}
-            >
-              <Text style={tw`${selectedPatientId === p.id ? 'text-white' : 'text-gray-600'} text-sm font-medium`}>{p.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+      <View style={tw`flex-row gap-6 mb-8 z-20`}>
+        {/* Patient Selector */}
+        <View style={tw`flex-1 bg-white p-4 rounded-xl shadow-sm border border-[#e2e8f0] max-w-sm z-20`}>
+          <Text style={tw`text-[#64748b] text-base mb-2 font-medium`}>Pilih Pasien: </Text>
+          <View style={tw`relative z-20`}>
+            <View style={tw`flex-row items-center bg-[#eef1f5] rounded-xl px-4 py-3`}>
+              <Ionicons name="search-outline" size={18} color="#94a3b8" style={tw`mr-2`} />
+              <TextInput
+                style={tw`flex-1 text-[#0b4771] outline-none font-medium text-sm`}
+                placeholder="Cari & pilih pasien..."
+                placeholderTextColor="#94a3b8"
+                value={searchQuery}
+                onChangeText={(text) => {
+                  setSearchQuery(text);
+                  setIsDropdownOpen(true);
+                }}
+                onFocus={() => setIsDropdownOpen(true)}
+              />
+              {searchQuery ? (
+                <TouchableOpacity onPress={() => { setSearchQuery(''); setSelectedPatientId(null); setIsDropdownOpen(true); }}>
+                  <Ionicons name="close-circle" size={18} color="#94a3b8" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => setIsDropdownOpen(!isDropdownOpen)}>
+                  <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={18} color="#94a3b8" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {isDropdownOpen && (
+              <View style={tw`absolute top-13 left-0 right-0 bg-white border border-[#e2e8f0] rounded-xl shadow-lg max-h-60 overflow-hidden z-30`}>
+                <ScrollView nestedScrollEnabled={true}>
+                  {filteredPatients.length > 0 ? (
+                    filteredPatients.map((p) => (
+                      <TouchableOpacity
+                        key={p.id}
+                        style={tw`px-4 py-3 border-b border-[#f1f5f9] flex-row justify-between items-center ${selectedPatientId === p.id ? 'bg-[#e0f2f1]' : 'hover:bg-gray-50'}`}
+                        onPress={() => handleSelectPatient(p)}
+                      >
+                        <Text style={tw`${selectedPatientId === p.id ? 'text-[#1ba39a] font-semibold' : 'text-gray-700'} text-sm`}>
+                          {p.name}
+                        </Text>
+                        {selectedPatientId === p.id && (
+                          <Ionicons name="checkmark" size={16} color="#1ba39a" />
+                        )}
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <View style={tw`px-4 py-3`}>
+                      <Text style={tw`text-gray-400 text-sm text-center`}>Pasien tidak ditemukan</Text>
+                    </View>
+                  )}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Admission Type Selector */}
+        <View style={tw`flex-1 bg-white p-4 rounded-xl shadow-sm border border-[#e2e8f0] max-w-md`}>
+          <Text style={tw`text-[#64748b] text-base mb-2 font-medium`}>Tipe Layanan: </Text>
+          <View style={tw`flex-row gap-2`}>
+            {[
+              { id: 'rawat_jalan', label: 'Rawat Jalan' },
+              { id: 'rawat_inap', label: 'Rawat Inap' },
+              { id: 'igd', label: 'IGD' }
+            ].map((adm) => (
+              <TouchableOpacity 
+                key={adm.id} 
+                style={tw`px-4 py-1.5 rounded-lg ${admissionType === adm.id ? 'bg-[#1ba39a]' : 'bg-gray-100'}`}
+                onPress={() => setAdmissionType(adm.id as any)}
+              >
+                <Text style={tw`${admissionType === adm.id ? 'text-white' : 'text-gray-600'} text-sm font-medium`}>{adm.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       </View>
 
       <View style={tw`bg-white rounded-2xl p-8 shadow-sm border border-[#e2e8f0]`}>

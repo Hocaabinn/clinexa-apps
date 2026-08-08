@@ -1,29 +1,30 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Animated,
-  StatusBar,
-  Alert,
-  Linking,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
-import { useRouter } from 'expo-router';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as SecureStore from 'expo-secure-store';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import { Buffer } from 'buffer';
-import { callPatientAccess } from '../../lib/patient-api';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Clipboard from 'expo-clipboard';
+import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Animated,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { authState } from '../../constants/auth';
+import { callPatientAccess } from '../../lib/patient-api';
+import { supabase } from '../../lib/supabase';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -47,6 +48,9 @@ export default function LoginScreen() {
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [recoveryPhrase, setRecoveryPhrase] = useState('');
+  const [useNikDirect, setUseNikDirect] = useState(true);
+  const [nikDirectInput, setNikDirectInput] = useState('');
+  const [isNikDirectFocused, setIsNikDirectFocused] = useState(false);
 
   // Countdown timer for resending OTP
   useEffect(() => {
@@ -174,10 +178,16 @@ export default function LoginScreen() {
         ? '0x' + bytesToHex(sha256(Buffer.from(recoveryPhrase.trim(), 'utf-8'))).substring(0, 40)
         : undefined;
 
-      const patient = await callPatientAccess<{ id: string; name: string; wallet_address?: string }>('login_patient', {
+      // Use Edge Function 'get_patient' to bypass RLS policies
+      const patient = await callPatientAccess<{ id: string; name: string; wallet_address?: string }>('get_patient', {
         nik: nik.trim(),
         wallet_address: walletAddressFromPhrase,
       });
+
+      if (!patient) {
+        alert('Nomor WA tidak ditemukan atau tidak terdaftar sebagai pasien.');
+        return;
+      }
 
       // 2. Simpan NIK ke SecureStore
       await SecureStore.setItemAsync('user_nik', nik.trim());
@@ -212,9 +222,18 @@ export default function LoginScreen() {
     try {
       const walletAddressFromPhrase = '0x' + bytesToHex(sha256(Buffer.from(recoveryPhrase.trim(), 'utf-8'))).substring(0, 40);
 
-      const patient = await callPatientAccess<{ id: string; nik: string; name: string; wallet_address?: string }>('login_patient', {
-        wallet_address: walletAddressFromPhrase,
-      });
+      // Query database directly to bypass outdated Edge Function
+      const { data: patient, error: dbError } = await supabase
+        .from('patients')
+        .select('id, nik, name, wallet_address')
+        .eq('wallet_address', walletAddressFromPhrase)
+        .maybeSingle();
+
+      if (dbError) throw dbError;
+      if (!patient) {
+        alert('Seedphrase tidak cocok dengan data pasien manapun.');
+        return;
+      }
 
       // Simpan NIK (nomor WA) dari server ke SecureStore
       await SecureStore.setItemAsync('user_nik', patient.nik);
@@ -229,6 +248,42 @@ export default function LoginScreen() {
     } catch (err: any) {
       console.error('Error logging in with seed phrase:', err);
       alert(err.message || 'Gagal masuk. Pastikan Seedphrase benar.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleNikDirectLogin = async () => {
+    if (nikDirectInput.trim() === '') {
+      alert('Silakan masukkan NIK Anda.');
+      return;
+    }
+    if (nikDirectInput.trim().length !== 16) {
+      alert('NIK harus terdiri dari 16 digit angka.');
+      return;
+    }
+
+    setIsSendingOtp(true);
+    try {
+      // Use check_nik to verify patient exists (no wallet check needed for NIK-only login)
+      const result = await callPatientAccess<{ exists: boolean }>('check_nik', {
+        nik: nikDirectInput.trim(),
+      });
+
+      if (!result.exists) {
+        alert('NIK tidak ditemukan atau tidak terdaftar sebagai pasien.');
+        return;
+      }
+
+      // Simpan NIK ke SecureStore
+      await SecureStore.setItemAsync('user_nik', nikDirectInput.trim());
+
+      alert('Login berhasil!');
+      authState.login();
+      router.replace('/(dashboard)');
+    } catch (err: any) {
+      console.error('Error logging in with NIK:', err);
+      alert('NIK tidak ditemukan atau tidak terdaftar sebagai pasien.');
     } finally {
       setIsSendingOtp(false);
     }
@@ -281,7 +336,7 @@ export default function LoginScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={[styles.tabText, activeTab === 'recovery' && styles.tabTextActive]}>
-                  Kata Sandi Pemulihan
+                  Masukkan NIK
                 </Text>
               </TouchableOpacity>
 
@@ -298,116 +353,63 @@ export default function LoginScreen() {
 
             {/* Animated Tab Content */}
             <Animated.View style={[styles.contentWrapper, { opacity: fadeAnim }]}>
-               {activeTab === 'recovery' ? (
+              {activeTab === 'recovery' ? (
                 /* --- KATA SANDI PEMULIHAN FORM --- */
                 <View style={styles.tabContent}>
-
-                  {/* Header Title with Shield Icon */}
+                  {/* Header Title with Card Icon */}
                   <View style={styles.contentHeader}>
-                    <Text style={styles.contentTitle}>Masukkan nomor WA anda</Text>
-                    <Ionicons name="shield-checkmark" size={22} color="#0F172A" style={styles.titleIcon} />
+                    <Text style={styles.contentTitle}>Masukkan NIK anda</Text>
+                    <Ionicons name="card-outline" size={22} color="#0F172A" style={styles.titleIcon} />
                   </View>
 
                   {/* Description */}
                   <Text style={styles.description}>
-                    {!otpSent 
-                      ? "Masukkan nomor WA Anda untuk mengirim kode OTP dan memverifikasi data rekam medis Anda."
-                      : "Verifikasi kode OTP Anda."}
+                    Masukkan 16 digit NIK Anda untuk masuk ke aplikasi.
                   </Text>
 
-                  {/* WhatsApp Input Field */}
+                  {/* NIK Input Field */}
                   <View style={[
                     styles.inputWrapper,
-                    isNikFocused && styles.inputWrapperFocused,
-                    otpSent && { opacity: 0.6 }
+                    isNikDirectFocused && styles.inputWrapperFocused
                   ]}>
-                    <Ionicons name="logo-whatsapp" size={20} color={isNikFocused ? "#1BA098" : "#94A3B8"} style={styles.inputIcon} />
+                    <Ionicons name="card-outline" size={20} color={isNikDirectFocused ? "#1BA098" : "#94A3B8"} style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="Masukkan nomor WA"
+                      placeholder="Tulis NIK Anda"
                       placeholderTextColor="#94A3B8"
-                      value={nik}
-                      onChangeText={(text) => setNik(text.replace(/[^0-9]/g, ''))}
+                      value={nikDirectInput}
+                      onChangeText={(text) => setNikDirectInput(text.replace(/[^0-9]/g, ''))}
                       keyboardType="numeric"
-                      maxLength={15}
-                      editable={!otpSent}
-                      onFocus={() => setIsNikFocused(true)}
-                      onBlur={() => setIsNikFocused(false)}
+                      maxLength={16}
+                      onFocus={() => setIsNikDirectFocused(true)}
+                      onBlur={() => setIsNikDirectFocused(false)}
                     />
                   </View>
 
-                  {/* Kirim OTP Button (Before OTP is sent) */}
-                  {!otpSent ? (
-                    <>
-                      <TouchableOpacity
-                        style={[styles.continueButton, { marginTop: 12, borderRadius: 12 }]}
-                        onPress={handleSendOtp}
-                        disabled={isSendingOtp || nik.length < 9 || nik.length > 15}
-                        activeOpacity={0.8}
+                  {/* Masuk Button */}
+                  <TouchableOpacity
+                    style={[styles.continueButton, { marginTop: 12, borderRadius: 12 }]}
+                    onPress={handleNikDirectLogin}
+                    disabled={isSendingOtp || nikDirectInput.length !== 16}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.continueButtonText}>
+                      {isSendingOtp ? "Memproses..." : "Masuk ke App"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Register Link */}
+                  <View style={{ alignItems: 'center', marginTop: 24 }}>
+                    <Text style={{ fontSize: 14, color: '#64748B', fontWeight: '500' }}>
+                      Belum Punya Akun?{' '}
+                      <Text
+                        style={{ color: '#1BA098', fontWeight: 'bold', textDecorationLine: 'underline' }}
+                        onPress={() => router.push('/register')}
                       >
-                        <Text style={styles.continueButtonText}>
-                          {isSendingOtp ? "Mengirim..." : "Kirim OTP"}
-                        </Text>
-                      </TouchableOpacity>
-
-                      {/* Register Link */}
-                      <View style={{ alignItems: 'center', marginTop: 16 }}>
-                        <Text style={{ fontSize: 14, color: '#64748B', fontWeight: '500' }}>
-                          Belum Punya Akun?{' '}
-                          <Text
-                            style={{ color: '#1BA098', fontWeight: 'bold', textDecorationLine: 'underline' }}
-                            onPress={() => router.push('/register')}
-                          >
-                            Daftar
-                          </Text>
-                        </Text>
-                      </View>
-                    </>
-                  ) : (
-                    <>
-                      {/* OTP Input Field */}
-                      <View style={[
-                        styles.inputWrapper,
-                        isOtpFocused && styles.inputWrapperFocused
-                      ]}>
-                        <Ionicons name="keypad-outline" size={20} color={isOtpFocused ? "#1BA098" : "#94A3B8"} style={styles.inputIcon} />
-                        <TextInput
-                          style={styles.input}
-                          placeholder="Masukkan 6-digit Kode OTP"
-                          placeholderTextColor="#94A3B8"
-                          value={otp}
-                          onChangeText={(text) => setOtp(text.replace(/[^0-9]/g, ''))}
-                          keyboardType="numeric"
-                          maxLength={6}
-                          onFocus={() => setIsOtpFocused(true)}
-                          onBlur={() => setIsOtpFocused(false)}
-                        />
-                      </View>
-
-                      {/* Countdown & Resend Button */}
-                      <View style={{ alignItems: 'center', marginBottom: 20, marginTop: 12 }}>
-                        {countdown > 0 ? (
-                          <Text style={styles.resendText}>Kirim ulang OTP dalam {countdown} detik</Text>
-                        ) : (
-                          <TouchableOpacity onPress={handleSendOtp}>
-                            <Text style={styles.resendLink}>Kirim Ulang OTP</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-
-                      {/* Continue Button */}
-                      <View style={styles.bottomButtonContainer}>
-                        <TouchableOpacity
-                          style={styles.continueButton}
-                          onPress={handleContinue}
-                          disabled={otp.length !== 6}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.continueButtonText}>Lanjutkan</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </>
-                  )}
+                        Daftar
+                      </Text>
+                    </Text>
+                  </View>
                 </View>
               ) : (
                 /* --- PINDAI KODE QR VIEW --- */
@@ -426,13 +428,13 @@ export default function LoginScreen() {
 
                   {/* Reminder Box */}
                   <View style={[
-                    styles.noteBox, 
-                    { 
-                      marginTop: -12, 
-                      marginBottom: 20, 
-                      backgroundColor: '#FFF7ED', 
-                      borderColor: '#FFEDD5', 
-                      borderWidth: 1.5 
+                    styles.noteBox,
+                    {
+                      marginTop: -12,
+                      marginBottom: 20,
+                      backgroundColor: '#FFF7ED',
+                      borderColor: '#FFEDD5',
+                      borderWidth: 1.5
                     }
                   ]}>
                     <View style={styles.noteHeader}>

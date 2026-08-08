@@ -615,6 +615,24 @@ export default function ProfileScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
           </TouchableOpacity>
+
+          {/* Action Row Pengaturan */}
+          <TouchableOpacity
+            style={[
+              tw`bg-white rounded-2xl p-4 border border-gray-100 flex-row justify-between items-center mt-3`,
+              { elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6 }
+            ]}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(profile)/settings')}
+          >
+            <View style={tw`flex-row items-center`}>
+              <View style={tw`w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3`}>
+                <Ionicons name="settings-outline" size={22} color="#64748b" />
+              </View>
+              <Text style={tw`text-gray-800 font-bold text-sm`}>Pengaturan</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+          </TouchableOpacity>
         </View>
 
         {/* Keluar Akun Button */}

@@ -26,6 +26,7 @@ interface ActivityItem {
   date: string;
   time: string;
   type: string;
+  expiresAt?: string | null;
 }
 
 export default function RiwayatAktivitasScreen() {
@@ -82,7 +83,8 @@ export default function RiwayatAktivitasScreen() {
             status: status as any,
             date: dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
             time: dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-            type: typeMap[doc.record_type] || 'Rekam Medis'
+            type: typeMap[doc.record_type] || 'Rekam Medis',
+            expiresAt: doc.consent_expires_at,
           };
         });
 
@@ -101,8 +103,35 @@ export default function RiwayatAktivitasScreen() {
     }
   };
 
+  // Tick state to force re-render for countdowns
+  const [tick, setTick] = useState(0);
+
   useEffect(() => {
     fetchActivities();
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
+      
+      // Check if any active approved item has expired, if so, trigger refetch to update UI automatically
+      setActivities((prevActivities) => {
+        let hasChanges = false;
+        const nextActivities = prevActivities.map(item => {
+          if (item.status === 'approved' && item.expiresAt) {
+            const isNowExpired = new Date(item.expiresAt) < new Date();
+            if (isNowExpired) {
+              hasChanges = true;
+              return { ...item, status: 'expired' as const };
+            }
+          }
+          return item;
+        });
+        if (hasChanges) {
+          // Re-fetch from DB to sync backend state as well
+          setTimeout(() => fetchActivities(), 100);
+        }
+        return nextActivities;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const executeUpdateConsent = async (recordId: string, nextStatus: 'approved' | 'rejected') => {
@@ -113,10 +142,11 @@ export default function RiwayatAktivitasScreen() {
       if (!nik) return;
 
       await callPatientAccess('update_consent', {
-        nik,
+        nik: nik.trim(),
         wallet_address: walletAddress,
         record_id: recordId,
-        consent_status: nextStatus
+        consent_status: nextStatus,
+        consent_duration_type: '60_min' // Set to 60_min (which is 2 mins in test mode) so it generates a countdown timer
       });
 
       // Refresh list setelah berhasil
@@ -264,17 +294,33 @@ export default function RiwayatAktivitasScreen() {
                   </View>
                 </View>
 
-                {/* Duration/Detail info row */}
-                <View style={tw`bg-[#f8fafc] rounded-2xl py-3 px-4 flex-row justify-between items-center mb-4`}>
-                  <View style={tw`flex-row items-center`}>
-                    <Ionicons name="time-outline" size={15} color="#64748b" style={tw`mr-1.5`} />
-                    <Text style={tw`text-gray-500 text-xs font-semibold`}>{item.date} • {item.time}</Text>
-                  </View>
-                  <View style={tw`flex-row items-center`}>
-                    <Ionicons name="lock-closed-outline" size={14} color="#64748b" style={tw`mr-1`} />
-                    <Text style={tw`text-gray-500 text-xs font-semibold`}>{item.type}</Text>
-                  </View>
-                </View>
+                 {/* Duration/Detail info row */}
+                 <View style={tw`bg-[#f8fafc] rounded-2xl py-3 px-4 flex-row justify-between items-center mb-4`}>
+                   <View style={tw`flex-row items-center flex-1 pr-2`}>
+                     <Ionicons name="time-outline" size={15} color="#64748b" style={tw`mr-1.5`} />
+                     <View>
+                       <Text style={tw`text-gray-500 text-xs font-semibold`}>{item.date} • {item.time}</Text>
+                       {item.status === 'approved' && item.expiresAt && (() => {
+                         const diff = new Date(item.expiresAt).getTime() - Date.now();
+                         if (diff > 0) {
+                           const mins = Math.floor(diff / 60000);
+                           const secs = Math.floor((diff % 60000) / 1000);
+                           const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                           return (
+                             <Text style={tw`text-[#ff9f1c] text-[11px] font-bold mt-0.5`}>
+                               Masa Akses Sisa: {timeStr}
+                             </Text>
+                           );
+                         }
+                         return null;
+                       })()}
+                     </View>
+                   </View>
+                   <View style={tw`flex-row items-center`}>
+                     <Ionicons name="lock-closed-outline" size={14} color="#64748b" style={tw`mr-1`} />
+                     <Text style={tw`text-gray-500 text-xs font-semibold`}>{item.type}</Text>
+                   </View>
+                 </View>
 
                 {/* Action Buttons */}
                 {updatingId === item.id ? (
@@ -313,11 +359,11 @@ export default function RiwayatAktivitasScreen() {
 
                     {(item.status === 'rejected' || item.status === 'expired') && (
                       <TouchableOpacity
-                        style={tw`bg-gray-100 py-3.5 rounded-2xl flex-row items-center justify-center`}
+                        style={tw`bg-[#1ba39a] py-3.5 rounded-2xl flex-row items-center justify-center`}
                         onPress={() => handleUpdateConsent(item.id, 'approved')}
                       >
-                        <Ionicons name="refresh-outline" size={18} color="#475569" style={tw`mr-2`} />
-                        <Text style={tw`text-[#475569] font-extrabold text-sm`}>Berikan Akses Kembali</Text>
+                        <Ionicons name="checkmark-circle-outline" size={18} color="white" style={tw`mr-2`} />
+                        <Text style={tw`text-white font-extrabold text-sm`}>Izinkan Akses Kembali</Text>
                       </TouchableOpacity>
                     )}
                   </>

@@ -79,6 +79,7 @@ export default function RekamMedisList() {
           chief_complaint, 
           created_at, 
           consent_status, 
+          consent_expires_at, 
           blockchain_hash, 
           patients(name)
         `)
@@ -106,13 +107,17 @@ export default function RekamMedisList() {
             desc = `Resep Obat • ${dateStr}`;
           }
 
-          if (item.consent_status === 'approved') approvedCount++;
+          const isExpired = item.consent_expires_at ? new Date(item.consent_expires_at) < new Date() : false;
+          const currentStatus = isExpired ? 'expired' : item.consent_status;
+
+          if (currentStatus === 'approved') approvedCount++;
           else if (item.consent_status === 'pending') pendingCount++;
-          else if (item.consent_status === 'rejected') rejectedCount++;
+          else rejectedCount++;
 
           const statusMap: Record<string, string> = {
             approved: 'Diterima',
             rejected: 'Ditolak',
+            expired: 'Kedaluwarsa',
             pending: 'Menunggu Izin'
           };
 
@@ -122,7 +127,7 @@ export default function RekamMedisList() {
             record_id: item.id.substring(0, 8).toUpperCase(),
             desc,
             hash: item.blockchain_hash || '0x0000000000...0000',
-            status: statusMap[item.consent_status] || 'Menunggu Izin',
+            status: statusMap[currentStatus] || 'Menunggu Izin',
             record_type: item.record_type,
             created_at: item.created_at
           };
@@ -142,6 +147,7 @@ export default function RekamMedisList() {
     switch (status) {
       case 'Diterima': return { bg: 'bg-[#dcfce7]', text: 'text-[#16a34a]', icon: 'checkmark-circle-outline' as any };
       case 'Ditolak': return { bg: 'bg-[#fee2e2]', text: 'text-[#dc2626]', icon: 'close-circle-outline' as any };
+      case 'Kedaluwarsa': return { bg: 'bg-[#fee2e2]', text: 'text-[#dc2626]', icon: 'time-outline' as any };
       case 'Menunggu Izin': return { bg: 'bg-[#ffedd5]', text: 'text-[#d97706]', icon: 'hourglass-outline' as any };
       default: return { bg: 'bg-gray-100', text: 'text-gray-500', icon: 'ellipse-outline' as any };
     }

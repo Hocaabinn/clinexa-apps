@@ -35,6 +35,7 @@ interface MedicalRecord {
   hash: string;
   type: 'Pemeriksaan' | 'Lab' | 'Resep';
   imageUrl: string;
+  admissionType?: 'rawat_jalan' | 'rawat_inap' | 'igd';
 }
 
 function RekamMedisScreen() {
@@ -125,6 +126,7 @@ function RekamMedisScreen() {
             hash: doc.blockchain_hash || '0x' + doc.id.replace(/-/g, '').substring(0, 20),
             type: typeMap[doc.record_type] || 'Pemeriksaan',
             imageUrl: 'https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?w=600&auto=format&fit=crop&q=80',
+            admissionType: doc.admission_type || 'rawat_jalan',
           };
         });
         setMedicalRecords(formatted);
@@ -442,13 +444,28 @@ function RekamMedisScreen() {
                     </Text>
                     
                     {/* Badge: VERIFIED HASH & Relative Time */}
-                    <View style={tw`flex-row items-center`}>
+                    <View style={tw`flex-row items-center flex-wrap gap-y-1`}>
                       <View style={tw`bg-[#e8f6ed] flex-row items-center px-2 py-0.75 rounded-md mr-2`}>
                         <Ionicons name="shield-checkmark" size={11} color="#16a34a" style={tw`mr-1`} />
                         <Text style={tw`text-[#16a34a] text-[9.5px] font-extrabold tracking-wider`}>
                           VERIFIED HASH
                         </Text>
                       </View>
+                      
+                      {/* Admission Type Badge */}
+                      <View style={tw`px-2 py-0.75 rounded-md mr-2 ${
+                        record.admissionType === 'rawat_inap' ? 'bg-blue-100' :
+                        record.admissionType === 'igd' ? 'bg-red-100' : 'bg-gray-100'
+                      }`}>
+                        <Text style={tw`text-[9.5px] font-extrabold tracking-wider ${
+                          record.admissionType === 'rawat_inap' ? 'text-blue-600' :
+                          record.admissionType === 'igd' ? 'text-red-600' : 'text-gray-600'
+                        }`}>
+                          {record.admissionType === 'rawat_inap' ? 'RAWAT INAP' :
+                           record.admissionType === 'igd' ? 'IGD' : 'RAWAT JALAN'}
+                        </Text>
+                      </View>
+
                       <Text style={tw`text-gray-400 text-xs font-semibold`}>• {record.relativeDate}</Text>
                     </View>
                   </View>
