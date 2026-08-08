@@ -28,7 +28,7 @@ import { bytesToHex } from '@noble/hashes/utils';
 import { callPatientAccess } from '../../lib/patient-api';
 import { patientDataCache, useAuth } from '../../constants/auth';
 import { supabase } from '../../lib/supabase';
-import { useTranslation } from '../../lib/language';
+import { useTranslation, getLanguage } from '../../lib/language';
 
 global.Buffer = global.Buffer || Buffer;
 
@@ -286,12 +286,19 @@ export default function ProfileScreen() {
     const year = parts[0];
     const monthIndex = parseInt(parts[1]) - 1;
     const day = parseInt(parts[2]);
-    const months = [
+    
+    const isEn = getLanguage() === 'en';
+    const monthsId = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
-    const monthName = months[monthIndex] || parts[1];
-    return `${day} ${monthName} ${year}`;
+    const monthsEn = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    const monthName = isEn ? monthsEn[monthIndex] : monthsId[monthIndex];
+    return isEn ? `${monthName} ${day}, ${year}` : `${day} ${monthName} ${year}`;
   };
 
   useEffect(() => {
@@ -510,14 +517,14 @@ export default function ProfileScreen() {
         {/* Informasi Pribadi Section */}
         <View style={tw`px-5 mb-5`}>
           <View style={tw`flex-row justify-between items-center mb-4`}>
-            <Text style={tw`text-lg font-bold text-gray-800`}>Informasi Pribadi</Text>
-
+            <Text style={tw`text-lg font-bold text-gray-800`}>{t('prof_personal_info')}</Text>
+ 
             {/* Blockchain Verified Badge */}
             <View style={tw`bg-[#e8f6ed] border border-[#dcfce7] px-3 py-1 rounded-full`}>
               <Text style={tw`text-[#16a34a] text-[10px] font-bold`}>Blockchain Verified</Text>
             </View>
           </View>
-
+ 
           {/* Personal Info Box */}
           <View style={[
             tw`bg-white rounded-[32px] p-6 border border-gray-100 relative`,
@@ -530,12 +537,12 @@ export default function ProfileScreen() {
               activeOpacity={0.7}
             >
               <Ionicons name="pencil-sharp" size={13} color="#2ea89c" style={tw`mr-1`} />
-              <Text style={tw`text-[#2ea89c] text-xs font-bold`}>Edit</Text>
+              <Text style={tw`text-[#2ea89c] text-xs font-bold`}>{t('prof_edit')}</Text>
             </TouchableOpacity>
             {/* Nama Lengkap */}
             <View style={tw`mb-4`}>
               <Text style={tw`text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-1`}>
-                Nama Lengkap
+                {t('prof_fullname')}
               </Text>
               {loading ? (
                 <ActivityIndicator size="small" color="#2ea89c" style={tw`self-start`} />
@@ -545,25 +552,25 @@ export default function ProfileScreen() {
                 </Text>
               )}
             </View>
-
+ 
             {/* Jenis Kelamin */}
             <View style={tw`mb-4 border-t border-gray-50 pt-4`}>
               <Text style={tw`text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-1`}>
-                Jenis Kelamin
+                {t('prof_gender')}
               </Text>
               {loading ? (
                 <ActivityIndicator size="small" color="#2ea89c" style={tw`self-start`} />
               ) : (
                 <Text style={tw`text-gray-800 font-bold text-base`}>
-                  {patientData?.gender === 'L' ? 'Laki-laki' : patientData?.gender === 'P' ? 'Perempuan' : '-'}
+                  {patientData?.gender === 'L' ? t('prof_gender_male') : patientData?.gender === 'P' ? t('prof_gender_female') : '-'}
                 </Text>
               )}
             </View>
-
+ 
             {/* Tanggal Lahir */}
             <View style={tw`mb-4 border-t border-gray-50 pt-4`}>
               <Text style={tw`text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-1`}>
-                Tanggal Lahir
+                {t('prof_birth_date')}
               </Text>
               {loading ? (
                 <ActivityIndicator size="small" color="#2ea89c" style={tw`self-start`} />
@@ -573,11 +580,11 @@ export default function ProfileScreen() {
                 </Text>
               )}
             </View>
-
+ 
             {/* Golongan Darah */}
             <View style={tw`border-t border-gray-50 pt-4`}>
               <Text style={tw`text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-1`}>
-                Golongan Darah
+                {t('prof_blood_type')}
               </Text>
               {loading ? (
                 <ActivityIndicator size="small" color="#2ea89c" style={tw`self-start`} />
@@ -873,7 +880,7 @@ export default function ProfileScreen() {
           activeOpacity={0.7}
         >
           <Ionicons name="home-outline" size={24} color="#9ca3af" />
-          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>Beranda</Text>
+          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>{t('nav_home')}</Text>
         </TouchableOpacity>
 
         {/* RME */}
@@ -883,7 +890,7 @@ export default function ProfileScreen() {
           activeOpacity={0.7}
         >
           <Ionicons name="document-text-outline" size={24} color="#9ca3af" />
-          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>RME</Text>
+          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>{t('nav_rme')}</Text>
         </TouchableOpacity>
 
         {/* Floating Scan QR */}
@@ -900,7 +907,7 @@ export default function ProfileScreen() {
               <MaterialCommunityIcons name="qrcode-scan" size={24} color="white" />
             </TouchableOpacity>
           </View>
-          <Text style={tw`text-[#2ea89c] text-xs font-medium absolute bottom-0`}>Scan QR</Text>
+          <Text style={tw`text-[#2ea89c] text-xs font-medium absolute bottom-0`}>{t('nav_scan')}</Text>
         </View>
 
         {/* Aktivitas */}
@@ -910,13 +917,13 @@ export default function ProfileScreen() {
           activeOpacity={0.7}
         >
           <MaterialCommunityIcons name="history" size={26} color="#9ca3af" />
-          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>Aktivitas</Text>
+          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>{t('nav_activity')}</Text>
         </TouchableOpacity>
 
         {/* Profil */}
         <TouchableOpacity style={tw`items-center flex-1`} activeOpacity={0.7}>
           <Ionicons name="person" size={24} color="#2ea89c" />
-          <Text style={tw`text-[#2ea89c] text-xs font-medium mt-1`}>Profil</Text>
+          <Text style={tw`text-[#2ea89c] text-xs font-medium mt-1`}>{t('nav_profile')}</Text>
         </TouchableOpacity>
       </View>
     </View>

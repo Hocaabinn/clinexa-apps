@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { callPatientAccess } from '../../lib/patient-api';
 import { supabase } from '../../lib/supabase';
+import { useTranslation } from '../../lib/language';
 
 interface ActivityItem {
   id: string;
@@ -31,6 +32,7 @@ interface ActivityItem {
 
 export default function RiwayatAktivitasScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -152,10 +154,10 @@ export default function RiwayatAktivitasScreen() {
       // Refresh list setelah berhasil
       await fetchActivities();
       Alert.alert(
-        'Berhasil',
+        t('act_alert_success') as string,
         nextStatus === 'approved'
-          ? 'Akses rekam medis telah disetujui.'
-          : 'Akses rekam medis telah ditolak/dibatalkan.'
+          ? t('act_alert_success_approved') as string
+          : t('act_alert_success_rejected') as string
       );
     } catch (err: any) {
       console.error('Failed to update consent:', err);
@@ -168,14 +170,14 @@ export default function RiwayatAktivitasScreen() {
   const handleUpdateConsent = (recordId: string, nextStatus: 'approved' | 'rejected') => {
     const isApprove = nextStatus === 'approved';
     Alert.alert(
-      isApprove ? 'Setujui Akses?' : 'Batalkan Akses?',
+      isApprove ? t('act_alert_title_approve') as string : t('act_alert_title_cancel') as string,
       isApprove 
-        ? 'Apakah Anda yakin ingin memberikan akses rekam medis ini kepada dokter/staf?'
-        : 'Apakah Anda yakin ingin membatalkan/menolak akses rekam medis ini? Dokter/staf tidak akan dapat melihat data ini lagi.',
+        ? t('act_alert_body_approve') as string
+        : t('act_alert_body_cancel') as string,
       [
-        { text: 'Batal', style: 'cancel' },
+        { text: t('act_alert_btn_cancel') as string, style: 'cancel' },
         { 
-          text: isApprove ? 'Setujui' : 'Ya, Batalkan', 
+          text: isApprove ? t('act_alert_btn_approve') as string : t('act_alert_btn_yes_cancel') as string, 
           style: isApprove ? 'default' : 'destructive',
           onPress: () => executeUpdateConsent(recordId, nextStatus)
         }
@@ -211,7 +213,7 @@ export default function RiwayatAktivitasScreen() {
 
             {/* Screen Title */}
             <Text style={tw`text-white font-extrabold text-2xl tracking-tight text-center`}>
-              Riwayat Aktivitas
+              {t('act_title')}
             </Text>
 
             {/* Refresh Button */}
@@ -234,19 +236,19 @@ export default function RiwayatAktivitasScreen() {
           ]}>
             {/* Aktif Counter */}
             <View style={tw`flex-1 items-center border-r border-gray-100`}>
-              <Text style={tw`text-[#16a34a] text-xs font-bold mb-1`}>Aktif</Text>
+              <Text style={tw`text-[#16a34a] text-xs font-bold mb-1`}>{t('act_status_active')}</Text>
               <Text style={tw`text-[#16a34a] text-2xl font-extrabold`}>{stats.aktif}</Text>
             </View>
 
             {/* Menunggu Counter */}
             <View style={tw`flex-1 items-center border-r border-gray-100`}>
-              <Text style={tw`text-[#ff9f1c] text-xs font-bold mb-1`}>Menunggu</Text>
+              <Text style={tw`text-[#ff9f1c] text-xs font-bold mb-1`}>{t('act_status_pending')}</Text>
               <Text style={tw`text-[#ff9f1c] text-2xl font-extrabold`}>{stats.menunggu}</Text>
             </View>
 
             {/* Ditolak Counter */}
             <View style={tw`flex-1 items-center`}>
-              <Text style={tw`text-[#ef4444] text-xs font-bold mb-1`}>Ditolak</Text>
+              <Text style={tw`text-[#ef4444] text-xs font-bold mb-1`}>{t('act_status_rejected')}</Text>
               <Text style={tw`text-[#ef4444] text-2xl font-extrabold`}>{stats.ditolak}</Text>
             </View>
           </View>
@@ -259,7 +261,7 @@ export default function RiwayatAktivitasScreen() {
           ) : activities.length === 0 ? (
             <View style={tw`py-10 items-center justify-center`}>
               <Ionicons name="document-text-outline" size={48} color="#cbd5e1" style={tw`mb-2`} />
-              <Text style={tw`text-gray-400 font-semibold`}>Belum ada riwayat aktivitas akses.</Text>
+              <Text style={tw`text-gray-400 font-semibold`}>{t('act_empty')}</Text>
             </View>
           ) : (
             activities.map((item) => (
@@ -289,7 +291,7 @@ export default function RiwayatAktivitasScreen() {
                       tw`text-[10px] font-bold`, 
                       item.status === 'approved' ? tw`text-[#22c55e]` : item.status === 'pending' ? tw`text-[#ff9f1c]` : tw`text-[#ef4444]`
                     ]}>
-                      {item.status === 'approved' ? 'DITERIMA' : item.status === 'pending' ? 'PENDING' : item.status === 'expired' ? 'KEDALUWARSA' : 'DITOLAK'}
+                      {item.status === 'approved' ? t('act_card_status_approved') : item.status === 'pending' ? t('act_card_status_pending') : item.status === 'expired' ? t('act_card_status_expired') : t('act_card_status_rejected')}
                     </Text>
                   </View>
                 </View>
@@ -308,7 +310,7 @@ export default function RiwayatAktivitasScreen() {
                            const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
                            return (
                              <Text style={tw`text-[#ff9f1c] text-[11px] font-bold mt-0.5`}>
-                               Masa Akses Sisa: {timeStr}
+                               {t('act_time_remaining')}: {timeStr}
                              </Text>
                            );
                          }
@@ -334,7 +336,7 @@ export default function RiwayatAktivitasScreen() {
                           onPress={() => handleUpdateConsent(item.id, 'rejected')}
                         >
                           <Ionicons name="close-circle-outline" size={18} color="#ef4444" style={tw`mr-2`} />
-                          <Text style={tw`text-[#ef4444] font-extrabold text-sm`}>Tolak</Text>
+                          <Text style={tw`text-[#ef4444] font-extrabold text-sm`}>{t('act_btn_reject')}</Text>
                         </TouchableOpacity>
                         
                         <TouchableOpacity
@@ -342,7 +344,7 @@ export default function RiwayatAktivitasScreen() {
                           onPress={() => handleUpdateConsent(item.id, 'approved')}
                         >
                           <Ionicons name="checkmark-circle-outline" size={18} color="white" style={tw`mr-2`} />
-                          <Text style={tw`text-white font-extrabold text-sm`}>Setujui</Text>
+                          <Text style={tw`text-white font-extrabold text-sm`}>{t('act_btn_approve')}</Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -353,7 +355,7 @@ export default function RiwayatAktivitasScreen() {
                         onPress={() => handleUpdateConsent(item.id, 'rejected')}
                       >
                         <Ionicons name="close-circle-outline" size={18} color="white" style={tw`mr-2`} />
-                        <Text style={tw`text-white font-extrabold text-sm`}>Batalkan Akses</Text>
+                        <Text style={tw`text-white font-extrabold text-sm`}>{t('act_btn_cancel')}</Text>
                       </TouchableOpacity>
                     )}
 
@@ -363,7 +365,7 @@ export default function RiwayatAktivitasScreen() {
                         onPress={() => handleUpdateConsent(item.id, 'approved')}
                       >
                         <Ionicons name="checkmark-circle-outline" size={18} color="white" style={tw`mr-2`} />
-                        <Text style={tw`text-white font-extrabold text-sm`}>Izinkan Akses Kembali</Text>
+                        <Text style={tw`text-white font-extrabold text-sm`}>{t('act_btn_grant_again')}</Text>
                       </TouchableOpacity>
                     )}
                   </>
@@ -386,7 +388,7 @@ export default function RiwayatAktivitasScreen() {
           activeOpacity={0.7}
         >
           <Ionicons name="home-outline" size={24} color="#9ca3af" />
-          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>Beranda</Text>
+          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>{t('nav_home')}</Text>
         </TouchableOpacity>
 
         {/* RME */}
@@ -396,7 +398,7 @@ export default function RiwayatAktivitasScreen() {
           activeOpacity={0.7}
         >
           <Ionicons name="document-text-outline" size={24} color="#9ca3af" />
-          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>RME</Text>
+          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>{t('nav_rme')}</Text>
         </TouchableOpacity>
 
         {/* Floating Scan QR */}
@@ -413,13 +415,13 @@ export default function RiwayatAktivitasScreen() {
               <MaterialCommunityIcons name="qrcode-scan" size={24} color="white" />
             </TouchableOpacity>
           </View>
-          <Text style={tw`text-[#2ea89c] text-xs font-medium absolute bottom-0`}>Scan QR</Text>
+          <Text style={tw`text-[#2ea89c] text-xs font-medium absolute bottom-0`}>{t('nav_scan')}</Text>
         </View>
 
         {/* Aktivitas */}
         <TouchableOpacity style={tw`items-center flex-1`} activeOpacity={0.7}>
           <MaterialCommunityIcons name="history" size={26} color="#2ea89c" />
-          <Text style={tw`text-[#2ea89c] text-xs font-medium mt-1`}>Aktivitas</Text>
+          <Text style={tw`text-[#2ea89c] text-xs font-medium mt-1`}>{t('nav_activity')}</Text>
         </TouchableOpacity>
 
         {/* Profil */}
@@ -429,7 +431,7 @@ export default function RiwayatAktivitasScreen() {
           activeOpacity={0.7}
         >
           <Ionicons name="person-outline" size={24} color="#9ca3af" />
-          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>Profil</Text>
+          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>{t('nav_profile')}</Text>
         </TouchableOpacity>
       </View>
 

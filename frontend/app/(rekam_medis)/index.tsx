@@ -23,6 +23,7 @@ import * as bip39 from 'bip39';
 import { supabase } from '../../lib/supabase';
 import { callPatientAccess } from '../../lib/patient-api';
 import { patientDataCache, medicalRecordsCache } from '../../constants/auth';
+import { loadLanguageAsync, translate, useTranslation } from '../../lib/language';
 
 global.Buffer = global.Buffer || Buffer;
 
@@ -41,6 +42,7 @@ interface MedicalRecord {
 function RekamMedisScreen() {
   const router = useRouter();
   const { filter } = useLocalSearchParams<{ filter?: string }>();
+  const { t } = useTranslation();
   
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -296,7 +298,7 @@ function RekamMedisScreen() {
 
             {/* Screen Title */}
             <Text style={tw`text-white font-extrabold text-2xl tracking-tight text-center`}>
-              Rekam Medis
+              {t('rme_title')}
             </Text>
 
             {/* Search Icon */}
@@ -323,7 +325,7 @@ function RekamMedisScreen() {
               <View style={tw`bg-white rounded-2xl flex-row items-center px-4 py-2.5 shadow-sm`}>
                 <Ionicons name="search" size={20} color="#9ca3af" style={tw`mr-2`} />
                 <TextInput
-                  placeholder="Cari pemeriksaan, lab, resep..."
+                  placeholder={t('rme_search_placeholder')}
                   placeholderTextColor="#9ca3af"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -351,7 +353,7 @@ function RekamMedisScreen() {
             <View style={tw`w-12 h-12 rounded-full bg-[#eff6ff] items-center justify-center mb-2.5`}>
               <Ionicons name="document-text" size={22} color="#3b82f6" />
             </View>
-            <Text style={tw`text-gray-400 text-[11px] font-semibold tracking-wider mb-1`}>Riwayat</Text>
+            <Text style={tw`text-gray-400 text-[11px] font-semibold tracking-wider mb-1`}>{t('rme_history')}</Text>
             <Text style={tw`text-gray-800 text-2xl font-extrabold`}>{totalHistory}</Text>
           </View>
 
@@ -369,7 +371,7 @@ function RekamMedisScreen() {
             <View style={tw`w-12 h-12 rounded-full bg-[#fef2f2] items-center justify-center mb-2.5`}>
               <Ionicons name="alert-circle" size={24} color="#ef4444" />
             </View>
-            <Text style={tw`text-gray-400 text-[11px] font-semibold tracking-wider mb-1`}>Alergi</Text>
+            <Text style={tw`text-gray-400 text-[11px] font-semibold tracking-wider mb-1`}>{t('rme_allergies')}</Text>
             <Text style={tw`text-gray-800 text-2xl font-extrabold`}>{totalAlergi}</Text>
           </View>
 
@@ -390,7 +392,7 @@ function RekamMedisScreen() {
             <View style={tw`w-12 h-12 rounded-full bg-[#f0fdf4] items-center justify-center mb-2.5`}>
               <MaterialCommunityIcons name="pill" size={22} color="#22c55e" />
             </View>
-            <Text style={tw`text-gray-400 text-[11px] font-semibold tracking-wider mb-1`}>Resep Obat</Text>
+            <Text style={tw`text-gray-400 text-[11px] font-semibold tracking-wider mb-1`}>{t('rme_prescriptions')}</Text>
             <Text style={tw`text-gray-800 text-2xl font-extrabold`}>{totalResep}</Text>
           </View>
         </View>
@@ -400,6 +402,12 @@ function RekamMedisScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={tw`gap-2.5 py-1`}>
             {(['Semua', 'Pemeriksaan', 'Lab', 'Resep'] as const).map((filter) => {
               const isActive = activeFilter === filter;
+              const filterTranslations: Record<string, string> = {
+                Semua: t('rme_filter_all') as string,
+                Pemeriksaan: t('rme_filter_checkup') as string,
+                Lab: t('rme_filter_lab') as string,
+                Resep: t('rme_filter_prescription') as string,
+              };
               return (
                 <TouchableOpacity
                   key={filter}
@@ -408,7 +416,7 @@ function RekamMedisScreen() {
                   activeOpacity={0.7}
                 >
                   <Text style={tw`text-sm font-bold ${isActive ? 'text-white' : 'text-gray-500'}`}>
-                    {filter}
+                    {filterTranslations[filter] || filter}
                   </Text>
                 </TouchableOpacity>
               );
@@ -522,13 +530,13 @@ function RekamMedisScreen() {
           activeOpacity={0.7}
         >
           <Ionicons name="home-outline" size={24} color="#9ca3af" />
-          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>Beranda</Text>
+          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>{t('nav_home')}</Text>
         </TouchableOpacity>
 
         {/* RME */}
         <TouchableOpacity style={tw`items-center flex-1`} activeOpacity={0.7}>
           <Ionicons name="document-text" size={24} color="#2ea89c" />
-          <Text style={tw`text-[#2ea89c] text-xs font-medium mt-1`}>RME</Text>
+          <Text style={tw`text-[#2ea89c] text-xs font-medium mt-1`}>{t('nav_rme')}</Text>
         </TouchableOpacity>
 
         {/* Floating Scan QR */}
@@ -545,7 +553,7 @@ function RekamMedisScreen() {
               <MaterialCommunityIcons name="qrcode-scan" size={24} color="white" />
             </TouchableOpacity>
           </View>
-          <Text style={tw`text-[#2ea89c] text-xs font-medium absolute bottom-0`}>Scan QR</Text>
+          <Text style={tw`text-[#2ea89c] text-xs font-medium absolute bottom-0`}>{t('nav_scan')}</Text>
         </View>
 
         {/* Aktivitas */}
@@ -555,7 +563,7 @@ function RekamMedisScreen() {
           activeOpacity={0.7}
         >
           <MaterialCommunityIcons name="history" size={26} color="#9ca3af" />
-          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>Aktivitas</Text>
+          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>{t('nav_activity')}</Text>
         </TouchableOpacity>
 
         {/* Profil */}
@@ -565,7 +573,7 @@ function RekamMedisScreen() {
           activeOpacity={0.7}
         >
           <Ionicons name="person-outline" size={24} color="#9ca3af" />
-          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>Profil</Text>
+          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>{t('nav_profile')}</Text>
         </TouchableOpacity>
       </View>
     </View>

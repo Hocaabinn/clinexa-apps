@@ -278,7 +278,7 @@ export default function DashboardIndex() {
             </View>
             <View style={tw`bg-white/20 px-3 py-1.5 rounded-full flex-row items-center ml-2 mt-1`}>
               <View style={tw`w-2 h-2 rounded-full bg-[#4ade80] mr-1.5`} />
-              <Text style={tw`text-white text-xs font-bold`}>Terverifikasi</Text>
+              <Text style={tw`text-white text-xs font-bold`}>{t('prof_card_verified')}</Text>
             </View>
           </View>
         </View>
@@ -344,9 +344,9 @@ export default function DashboardIndex() {
           {/* Kunjungan Terakhir */}
           <View style={tw`px-6 mb-8`}>
             <View style={tw`flex-row justify-between items-center mb-5`}>
-              <Text style={tw`text-xl font-bold text-gray-800`}>Kunjungan Terakhir</Text>
+              <Text style={tw`text-xl font-bold text-gray-800`}>{t('dash_last_visit')}</Text>
               <TouchableOpacity onPress={() => router.navigate('/(rekam_medis)')}>
-                <Text style={tw`text-[#2ea89c] font-bold text-sm`}>Lihat semua</Text>
+                <Text style={tw`text-[#2ea89c] font-bold text-sm`}>{t('dash_see_all')}</Text>
               </TouchableOpacity>
             </View>
 
