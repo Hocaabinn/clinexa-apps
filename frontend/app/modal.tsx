@@ -8,6 +8,7 @@ import * as SecureStore from 'expo-secure-store';
 import { callPatientAccess } from '../lib/patient-api';
 import { supabase } from '../lib/supabase';
 import { scheduleLocalNotification } from '../lib/notifications';
+import { loadLanguageAsync, translate } from '../lib/language';
 
 const { width } = Dimensions.get('window');
 const SCAN_BOX_SIZE = 260;
@@ -29,6 +30,11 @@ export default function QRScannerModal() {
   const [submitting, setSubmitting] = useState(false);
   
   const scanTranslateY = useRef(new Animated.Value(0)).current;
+
+  // Load language settings on mount
+  useEffect(() => {
+    loadLanguageAsync();
+  }, []);
 
   // Run the scanning laser animation
   useEffect(() => {
@@ -138,17 +144,21 @@ export default function QRScannerModal() {
       });
 
       // 1. Kirim notifikasi instan (delay 1 detik) akses diberikan
+      const grantedTitle = translate('notif_granted_title') as string;
+      const grantedBodyFn = translate('notif_granted_body') as (doc: string) => string;
       await scheduleLocalNotification(
-        '🔑 Akses Rekam Medis Diberikan',
-        `dr. ${scannedDoctor.name} berhasil diberikan izin untuk membuka rekam medis Anda.`,
+        grantedTitle,
+        grantedBodyFn(scannedDoctor.name),
         1
       );
 
       // 2. Jika memilih Sekali Akses (2 Menit / 60_min di DB), jadwalkan notifikasi penarikan akses setelah 5 detik untuk pengujian instan
       if (selectedDuration === '60_min') {
+        const revokedTitle = translate('notif_revoked_title') as string;
+        const revokedBodyFn = translate('notif_revoked_body') as (doc: string) => string;
         await scheduleLocalNotification(
-          '🔒 Akses Rekam Medis Dicabut',
-          `Waktu 2 menit telah habis. Izin akses rekam medis oleh dr. ${scannedDoctor.name} otomatis kedaluwarsa & dicabut.`,
+          revokedTitle,
+          revokedBodyFn(scannedDoctor.name),
           5
         );
       }
