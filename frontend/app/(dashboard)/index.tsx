@@ -292,16 +292,21 @@ export default function DashboardIndex() {
               <TouchableOpacity
                 onPress={() => router.navigate({ pathname: '/(rekam_medis)', params: { filter: 'Semua' } })}
                 style={[
-                  tw`bg-[#f0fafa] rounded-3xl p-5 flex-1 justify-between min-h-[160px]`,
+                  tw`bg-[#f0fafa] rounded-[28px] p-4 flex-1 justify-between min-h-[160px]`,
                   Platform.OS === 'ios' ? tw`shadow-sm` : tw`shadow-md`,
                   { elevation: 3, shadowColor: '#1e615e', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 8 }
                 ]}
                 activeOpacity={0.8}
               >
-                <View style={tw`w-12 h-12 rounded-full bg-[#1e615e] items-center justify-center mb-6 mt-1 ml-1`}>
-                  <MaterialCommunityIcons name="medical-bag" size={24} color="white" />
+                <View style={tw`w-11 h-11 rounded-full bg-[#1e615e] items-center justify-center mb-5 mt-0.5 ml-0.5`}>
+                  <MaterialCommunityIcons name="medical-bag" size={22} color="white" />
                 </View>
-                <Text style={tw`text-[#1e615e] font-bold text-base leading-tight pr-2`}>
+                <Text 
+                  style={tw`text-[#1e615e] font-bold text-[15px] leading-snug pr-1`}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
                   {t('dash_latest_rme')}
                 </Text>
               </TouchableOpacity>
@@ -311,31 +316,45 @@ export default function DashboardIndex() {
                 <TouchableOpacity
                   onPress={() => router.navigate({ pathname: '/(rekam_medis)', params: { filter: 'Resep' } })}
                   style={[
-                    tw`bg-[#f5fbf6] rounded-3xl p-4 flex-row items-center flex-1`,
+                    tw`bg-[#f5fbf6] rounded-[24px] p-3 flex-row items-center flex-1`,
                     Platform.OS === 'ios' ? tw`shadow-sm` : tw`shadow-md`,
                     { elevation: 2, shadowColor: '#348b48', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 6 }
                   ]}
                   activeOpacity={0.8}
                 >
-                  <View style={tw`w-10 h-10 rounded-full bg-[#e4f5e9] items-center justify-center mr-3`}>
-                    <MaterialCommunityIcons name="pill" size={20} color="#348b48" />
+                  <View style={tw`w-8.5 h-8.5 rounded-full bg-[#e4f5e9] items-center justify-center mr-2.5`}>
+                    <MaterialCommunityIcons name="pill" size={18} color="#348b48" />
                   </View>
-                  <Text style={tw`text-[#348b48] font-bold text-sm flex-1`}>{t('dash_prescriptions')}</Text>
+                  <Text 
+                    style={tw`text-[#348b48] font-bold text-[13px] leading-tight flex-1`}
+                    numberOfLines={2}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    {t('dash_prescriptions')}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={() => router.navigate({ pathname: '/(rekam_medis)', params: { filter: 'Lab' } })}
                   style={[
-                    tw`bg-[#fff7f5] rounded-3xl p-4 flex-row items-center flex-1`,
+                    tw`bg-[#fff7f5] rounded-[24px] p-3 flex-row items-center flex-1`,
                     Platform.OS === 'ios' ? tw`shadow-sm` : tw`shadow-md`,
                     { elevation: 2, shadowColor: '#b14e4e', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 6 }
                   ]}
                   activeOpacity={0.8}
                 >
-                  <View style={tw`w-10 h-10 rounded-full bg-[#ffecec] items-center justify-center mr-3`}>
-                    <MaterialCommunityIcons name="flask-outline" size={20} color="#b14e4e" />
+                  <View style={tw`w-8.5 h-8.5 rounded-full bg-[#ffecec] items-center justify-center mr-2.5`}>
+                    <MaterialCommunityIcons name="flask-outline" size={18} color="#b14e4e" />
                   </View>
-                  <Text style={tw`text-[#b14e4e] font-bold text-sm flex-1`}>{t('dash_lab_results')}</Text>
+                  <Text 
+                    style={tw`text-[#b14e4e] font-bold text-[13px] leading-tight flex-1`}
+                    numberOfLines={2}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    {t('dash_lab_results')}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
