@@ -11,11 +11,13 @@ import * as bip39 from 'bip39';
 import { supabase } from '../../lib/supabase';
 import { callPatientAccess } from '../../lib/patient-api';
 import { patientDataCache, medicalRecordsCache } from '../../constants/auth';
+import { useTranslation } from '../../lib/language';
 
 global.Buffer = global.Buffer || Buffer;
 
 export default function DashboardIndex() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [patientData, setPatientData] = useState<{ id: string, name: string } | null>(patientDataCache.get());
   const [loading, setLoading] = useState(!patientDataCache.get());
 
@@ -27,39 +29,26 @@ export default function DashboardIndex() {
     let greetingsList = [];
     if (isNight) {
       greetingsList = [
-        "Selamat Malam",
-        "Halo apa kabar",
-        "Salam Sehat",
-        "Selamat Beristirahat",
-        "Mimpi indah ya",
-        "Sehat Selalu",
-        "Semoga Sehat Selalu"
+        t('dash_greeting_night') as string,
+        t('dash_greeting_general') as string,
+        t('dash_greeting_general') as string
       ];
     } else if (isAfternoon) {
       greetingsList = [
-        "Selamat Siang",
-        "Selamat Sore",
-        "Halo gimana kabarnya",
-        "Salam Sehat",
-        "Selamat Beraktivitas",
-        "Hai",
-        "Sehat Selalu"
+        t('dash_greeting_afternoon') as string,
+        t('dash_greeting_evening') as string,
+        t('dash_greeting_general') as string
       ];
     } else {
       greetingsList = [
-        "Selamat Pagi",
-        "Semangat Pagi",
-        "Halo",
-        "Salam Sehat",
-        "Selamat Beraktivitas",
-        "Hai",
-        "Sehat Selalu"
+        t('dash_greeting_morning') as string,
+        t('dash_greeting_general') as string
       ];
     }
 
     const day = new Date().getDate();
     return greetingsList[day % greetingsList.length];
-  }, []);
+  }, [t]);
 
   // Medical visits state
   const defaultVisits = [
@@ -297,7 +286,7 @@ export default function DashboardIndex() {
         <View style={tw`bg-white rounded-t-[30px] -mt-2 pt-6 pb-4`}>
           {/* Layanan Cepat */}
           <View style={tw`px-6 mb-8`}>
-            <Text style={tw`text-xl font-bold text-gray-800 mb-5`}>Layanan Cepat</Text>
+            <Text style={tw`text-xl font-bold text-gray-800 mb-5`}>{t('dash_quick_service')}</Text>
             <View style={tw`flex-row gap-4`}>
               {/* Left Large Card */}
               <TouchableOpacity
@@ -313,7 +302,7 @@ export default function DashboardIndex() {
                   <MaterialCommunityIcons name="medical-bag" size={24} color="white" />
                 </View>
                 <Text style={tw`text-[#1e615e] font-bold text-base leading-tight pr-2`}>
-                  Hasil Rekam Medis Terkini
+                  {t('dash_latest_rme')}
                 </Text>
               </TouchableOpacity>
 
@@ -331,7 +320,7 @@ export default function DashboardIndex() {
                   <View style={tw`w-10 h-10 rounded-full bg-[#e4f5e9] items-center justify-center mr-3`}>
                     <MaterialCommunityIcons name="pill" size={20} color="#348b48" />
                   </View>
-                  <Text style={tw`text-[#348b48] font-bold text-sm flex-1`}>Resep Obat</Text>
+                  <Text style={tw`text-[#348b48] font-bold text-sm flex-1`}>{t('dash_prescriptions')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -346,7 +335,7 @@ export default function DashboardIndex() {
                   <View style={tw`w-10 h-10 rounded-full bg-[#ffecec] items-center justify-center mr-3`}>
                     <MaterialCommunityIcons name="flask-outline" size={20} color="#b14e4e" />
                   </View>
-                  <Text style={tw`text-[#b14e4e] font-bold text-sm flex-1`}>Hasil Lab</Text>
+                  <Text style={tw`text-[#b14e4e] font-bold text-sm flex-1`}>{t('dash_lab_results')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -398,7 +387,7 @@ export default function DashboardIndex() {
         {/* Beranda */}
         <TouchableOpacity style={tw`items-center flex-1`}>
           <Ionicons name="home" size={24} color="#2ea89c" />
-          <Text style={tw`text-[#2ea89c] text-xs font-medium mt-1`}>Beranda</Text>
+          <Text style={tw`text-[#2ea89c] text-xs font-medium mt-1`}>{t('nav_home') || (t('nav_profile') === 'Profile' ? 'Home' : 'Beranda')}</Text>
         </TouchableOpacity>
 
         {/* RME */}
@@ -408,7 +397,7 @@ export default function DashboardIndex() {
           activeOpacity={0.7}
         >
           <Ionicons name="document-text-outline" size={24} color="#9ca3af" />
-          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>RME</Text>
+          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>{t('nav_rme')}</Text>
         </TouchableOpacity>
 
         {/* Floating Scan QR */}
@@ -425,7 +414,7 @@ export default function DashboardIndex() {
               <MaterialCommunityIcons name="qrcode-scan" size={24} color="white" />
             </TouchableOpacity>
           </View>
-          <Text style={tw`text-[#2ea89c] text-xs font-medium absolute bottom-0`}>Scan QR</Text>
+          <Text style={tw`text-[#2ea89c] text-xs font-medium absolute bottom-0`}>{t('nav_scan')}</Text>
         </View>
 
         {/* Aktivitas */}
@@ -435,7 +424,7 @@ export default function DashboardIndex() {
           activeOpacity={0.7}
         >
           <MaterialCommunityIcons name="history" size={26} color="#9ca3af" />
-          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>Aktivitas</Text>
+          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>{t('nav_activity')}</Text>
         </TouchableOpacity>
 
         {/* Profil */}
@@ -445,7 +434,7 @@ export default function DashboardIndex() {
           activeOpacity={0.7}
         >
           <Ionicons name="person-outline" size={24} color="#9ca3af" />
-          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>Profil</Text>
+          <Text style={tw`text-gray-400 text-xs font-medium mt-1`}>{t('nav_profile')}</Text>
         </TouchableOpacity>
       </View>
 

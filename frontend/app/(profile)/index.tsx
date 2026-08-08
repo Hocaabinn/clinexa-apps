@@ -28,6 +28,7 @@ import { bytesToHex } from '@noble/hashes/utils';
 import { callPatientAccess } from '../../lib/patient-api';
 import { patientDataCache, useAuth } from '../../constants/auth';
 import { supabase } from '../../lib/supabase';
+import { useTranslation } from '../../lib/language';
 
 global.Buffer = global.Buffer || Buffer;
 
@@ -94,6 +95,7 @@ interface FullPatientData {
 export default function ProfileScreen() {
   const router = useRouter();
   const { logout } = useAuth();
+  const { t } = useTranslation();
   const [patientData, setPatientData] = useState<FullPatientData | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileImage, setProfileImage] = useState<string>('https://api.dicebear.com/7.x/initials/png?seed=User&backgroundColor=0b4771,1ba39a');
@@ -413,12 +415,12 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     Alert.alert(
-      'Keluar Akun',
-      'Apakah Anda yakin ingin keluar? Anda harus mengimpor ulang recovery phrase Anda untuk masuk kembali.',
+      t('prof_logout') as string,
+      t('prof_logout_confirm') as string,
       [
-        { text: 'Batal', style: 'cancel' },
+        { text: t('prof_logout_no') as string, style: 'cancel' },
         {
-          text: 'Keluar',
+          text: t('prof_logout_yes') as string,
           style: 'destructive',
           onPress: async () => {
             try {
@@ -590,8 +592,8 @@ export default function ProfileScreen() {
 
         {/* Keamanan Akun Section */}
         <View style={tw`px-5 mb-8`}>
-          <Text style={tw`text-lg font-bold text-gray-800 mb-4`}>Keamanan Akun</Text>
-
+          <Text style={tw`text-lg font-bold text-gray-800 mb-4`}>{t('prof_security')}</Text>
+ 
           {/* Action Row Recovery Password */}
           <TouchableOpacity
             style={[
@@ -601,7 +603,7 @@ export default function ProfileScreen() {
             activeOpacity={0.8}
             onPress={() => {
               if (!recoveryPhrase) {
-                Alert.alert('Recovery Phrase', 'Recovery phrase tidak ditemukan di perangkat ini.');
+                Alert.alert(t('prof_recovery_pass') as string, 'Recovery phrase tidak ditemukan di perangkat ini.');
               } else {
                 setShowRecoveryModal(true);
               }
@@ -611,11 +613,11 @@ export default function ProfileScreen() {
               <View style={tw`w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3`}>
                 <MaterialCommunityIcons name="lock-reset" size={22} color="#64748b" />
               </View>
-              <Text style={tw`text-gray-800 font-bold text-sm`}>Recovery Password</Text>
+              <Text style={tw`text-gray-800 font-bold text-sm`}>{t('prof_recovery_pass')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
           </TouchableOpacity>
-
+ 
           {/* Action Row Pengaturan */}
           <TouchableOpacity
             style={[
@@ -629,12 +631,12 @@ export default function ProfileScreen() {
               <View style={tw`w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3`}>
                 <Ionicons name="settings-outline" size={22} color="#64748b" />
               </View>
-              <Text style={tw`text-gray-800 font-bold text-sm`}>Pengaturan</Text>
+              <Text style={tw`text-gray-800 font-bold text-sm`}>{t('settings_title')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
           </TouchableOpacity>
         </View>
-
+ 
         {/* Keluar Akun Button */}
         <View style={tw`px-5 mb-10`}>
           <TouchableOpacity
@@ -643,7 +645,7 @@ export default function ProfileScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="log-out-outline" size={20} color="#ef4444" style={tw`mr-2`} />
-            <Text style={tw`text-[#ef4444] font-extrabold text-base`}>Keluar Akun</Text>
+            <Text style={tw`text-[#ef4444] font-extrabold text-base`}>{t('prof_logout')}</Text>
           </TouchableOpacity>
         </View>
 
